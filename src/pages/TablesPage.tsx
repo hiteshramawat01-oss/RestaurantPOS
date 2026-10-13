@@ -1,5 +1,5 @@
-import { SwapOutlined } from '@ant-design/icons';
-import { Button, Segmented, Spin } from 'antd';
+import { PlusOutlined, ShoppingOutlined, SwapOutlined } from '@ant-design/icons';
+import { App, Button, Segmented, Spin } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,8 @@ import { formatPrice } from '../domain/money';
 import { orderTotal } from '../domain/totals';
 import { useActiveOrders, useRooms, useTables, type ActiveOrderInfo } from '../hooks/data';
 import { elapsed, useNow } from '../lib/time';
-import { useSession } from '../session';
+import { useActor, useSession } from '../session';
+import { openTakeawayOrder } from '../services/orders';
 
 type TileState = 'free' | 'busy' | 'bill';
 
@@ -29,6 +30,21 @@ export default function TablesPage() {
   const now = useNow();
   const { staff, signOut } = useSession();
   const [filter, setFilter] = useState(readFilter);
+  const actor = useActor();
+  const { message } = App.useApp();
+  const [starting, setStarting] = useState(false);
+
+  const newTakeaway = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const o = await openTakeawayOrder(actor);
+      navigate(`/takeaway/${o.id}`);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : String(e));
+      setStarting(false);
+    }
+  };
 
   const failedKotOrders = useLiveQuery(async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000;
@@ -42,7 +58,7 @@ export default function TablesPage() {
 
   const byTable = useMemo(() => {
     const m = new Map<string, ActiveOrderInfo>();
-    for (const a of active ?? []) m.set(a.order.tableId, a);
+    for (const a of active ?? []) if (a.order.type !== 'takeaway') m.set(a.order.tableId, a);
     return m;
   }, [active]);
 
@@ -57,6 +73,10 @@ export default function TablesPage() {
   tables.forEach((t) => counts[stateOf(t)]++);
 
   const shownRooms = rooms.filter((r) => filter === 'all' || r.id === filter);
+  const takeaways = active
+    .filter((a) => a.order.type === 'takeaway' && a.items.length > 0)
+    .sort((x, y) => x.order.createdAt - y.order.createdAt);
+  const showTakeaway = filter === 'all' || filter === 'takeaway';
 
   const open = (t: DiningTable) => {
     const a = byTable.get(t.id);
@@ -92,7 +112,11 @@ export default function TablesPage() {
               /* ignore */
             }
           }}
-          options={[{ label: 'All', value: 'all' }, ...rooms.map((r) => ({ label: r.name, value: r.id }))]}
+          options={[
+            { label: 'All', value: 'all' },
+            ...rooms.map((r) => ({ label: r.name, value: r.id })),
+            { label: takeaways.length ? `Takeaway (${takeaways.length})` : 'Takeaway', value: 'takeaway' },
+          ]}
         />
         <div className="tally" aria-label="Table summary">
           <span className="tally__chip">
@@ -106,6 +130,47 @@ export default function TablesPage() {
           </span>
         </div>
       </div>
+
+      {showTakeaway && (
+        <section className="room" aria-label="Takeaway">
+          <div className="room__head">
+            <h2 className="room__name">Takeaway</h2>
+            <span className="muted">{takeaways.length ? `${takeaways.length} open` : 'Parcel orders without a table'}</span>
+          </div>
+          <div className="table-grid">
+            <button className="ttile ttile--new" onClick={newTakeaway} disabled={starting} aria-label="New takeaway order">
+              <PlusOutlined style={{ fontSize: 26 }} />
+              <span className="ttile__state">New takeaway</span>
+            </button>
+            {takeaways.map(({ order, items }) => {
+              const bill = order.status === 'billing';
+              const unsent = items.filter((i) => !i.kotId && !i.voided && i.qty > 0).length;
+              const printFailed = failedKotOrders?.has(order.id);
+              return (
+                <button
+                  key={order.id}
+                  className={`ttile ${bill ? 'is-bill' : 'is-busy'}`}
+                  onClick={() => navigate(bill ? `/billing/${order.id}` : `/takeaway/${order.id}`)}
+                  aria-label={`Takeaway ${order.orderNo}${order.customerName ? `, ${order.customerName}` : ''}, ${bill ? 'bill pending' : 'open'}`}
+                >
+                  <span className="ttile__label" style={{ fontSize: 24 }}>
+                    <ShoppingOutlined style={{ fontSize: 20, marginRight: 4 }} />#{order.orderNo}
+                  </span>
+                  <span className="ttile__seats" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {order.customerName ?? 'No name'}
+                  </span>
+                  {printFailed ? <span className="ttile__flag">Print failed</span> : unsent > 0 ? <span className="ttile__flag" style={{ background: 'var(--busy)' }}>Not sent</span> : null}
+                  <span className="ttile__state">{bill ? 'Bill pending' : 'Preparing'}</span>
+                  <span className="ttile__meta">
+                    <span className="money">{formatPrice(orderTotal(items))}</span>
+                    <span style={{ fontWeight: 600 }}>{elapsed(order.createdAt, now)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {shownRooms.map((room) => {
         const roomTables = tables.filter((t) => t.roomId === room.id);

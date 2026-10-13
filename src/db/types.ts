@@ -51,12 +51,15 @@ export interface Staff {
 }
 
 export type OrderStatus = 'open' | 'billing' | 'paid' | 'cancelled';
+export type OrderType = 'dine_in' | 'takeaway';
 
 export interface Order {
   id: ID;
   orderNo: number;
-  tableId: ID;
-  roomId: ID;
+  type?: OrderType; // missing on older records = dine_in
+  tableId: ID; // '' for takeaway
+  roomId: ID; // '' for takeaway
+  customerName?: string; // takeaway only, optional
   status: OrderStatus;
   staffId: ID;
   staffName: string;
@@ -106,6 +109,8 @@ export interface Kot {
   orderNo: number;
   tableLabel: string;
   roomName: string;
+  takeaway?: boolean;
+  customerName?: string;
   kind: KotKind;
   lines: KotLine[];
   staffName: string;
@@ -154,6 +159,8 @@ export interface Invoice {
   orderNo: number;
   tableLabel: string;
   roomName: string;
+  takeaway?: boolean;
+  customerName?: string;
   lines: InvoiceLine[];
   subtotal: number;
   discountType: DiscountType;

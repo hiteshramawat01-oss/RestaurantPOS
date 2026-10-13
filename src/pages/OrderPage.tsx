@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, CloseCircleFilled, MoreOutlined, SearchOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CloseCircleFilled, EditOutlined, MoreOutlined, SearchOutlined } from '@ant-design/icons';
 import { Alert, App, Button, Drawer, Dropdown, Input, Modal, Select, Spin } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -17,16 +17,21 @@ import {
   cancelOrder,
   discardIfEmpty,
   getActiveOrderForTable,
+  isActive,
   moveOrder,
   openOrderForTable,
   reopenOrder,
   requestBill,
   sendToKitchen,
+  setCustomerName,
 } from '../services/orders';
 import { useActor, useSession } from '../session';
 
 export default function OrderPage() {
-  const { tableId = '' } = useParams();
+  // Dine-in orders are opened by table (/order/:tableId);
+  // takeaway orders by order id (/takeaway/:orderId).
+  const { tableId = '', orderId = '' } = useParams();
+  const takeaway = !!orderId;
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const actor = useActor();
@@ -35,9 +40,13 @@ export default function OrderPage() {
   const printFlow = usePrintFlow();
   const now = useNow();
 
-  const table = useLiveQuery(() => db.diningTables.get(tableId), [tableId]);
+  const table = useLiveQuery(async () => (takeaway ? null : ((await db.diningTables.get(tableId)) ?? null)), [tableId, takeaway]);
   const room = useLiveQuery(async () => (table ? db.rooms.get(table.roomId) : undefined), [table?.roomId]);
-  const orderBox = useLiveQuery(async () => ({ order: await getActiveOrderForTable(tableId) }), [tableId]);
+  const orderBox = useLiveQuery(async () => {
+    if (!takeaway) return { order: await getActiveOrderForTable(tableId) };
+    const o = await db.orders.get(orderId);
+    return { order: isActive(o) ? o : undefined, closed: !!o && !isActive(o) };
+  }, [tableId, orderId, takeaway]);
   const order = orderBox?.order;
   const items = useLiveQuery(async () => (order ? db.orderItems.where('orderId').equals(order.id).toArray() : []), [order?.id]) ?? [];
   const kotNos = useLiveQuery(async () => {
@@ -54,6 +63,8 @@ export default function OrderPage() {
   const [sending, setSending] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameText, setNameText] = useState('');
 
   // Remember the order id to drop it if the waiter leaves without adding anything.
   const orderIdRef = useRef<string | undefined>(undefined);
@@ -65,6 +76,7 @@ export default function OrderPage() {
   const opening = useRef<Promise<Order> | null>(null);
   const ensureOrder = async (): Promise<Order> => {
     if (order) return order;
+    if (takeaway) throw new Error('This takeaway order is closed.');
     if (!opening.current) opening.current = openOrderForTable(tableId, actor).finally(() => (opening.current = null));
     return opening.current;
   };
@@ -86,12 +98,18 @@ export default function OrderPage() {
 
   if (table === undefined || orderBox === undefined || !categories || !menu)
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
-  if (!table)
+  if (takeaway ? !order : !table)
     return (
       <div className="page">
-        <Alert type="error" showIcon message="This table no longer exists." action={<Button onClick={() => navigate('/tables')}>Back to tables</Button>} />
+        <Alert
+          type={takeaway ? 'info' : 'error'}
+          showIcon
+          message={takeaway ? 'This takeaway order is closed.' : 'This table no longer exists.'}
+          action={<Button onClick={() => navigate('/tables')}>Back to tables</Button>}
+        />
       </div>
     );
+  const heading = takeaway ? `Takeaway #${order!.orderNo}` : `Table ${table!.label}`;
 
   const add = async (m: MenuItem) => {
     try {
@@ -137,7 +155,9 @@ export default function OrderPage() {
   );
 
   const menuActions = [
-    { key: 'move', label: 'Move to another table', disabled: !order || !isOwner },
+    ...(takeaway
+      ? [{ key: 'name', label: order?.customerName ? 'Change customer name' : 'Add customer name' }]
+      : [{ key: 'move', label: 'Move to another table', disabled: !order || !isOwner }]),
     { key: 'cancel', label: 'Cancel order', danger: true, disabled: !order || !isOwner },
   ];
 
@@ -165,18 +185,45 @@ export default function OrderPage() {
           />
           <div style={{ minWidth: 0 }}>
             <div className="order__table">
-              Table {table.label} <span className="muted" style={{ fontWeight: 600, fontSize: 16 }}>{room?.name}</span>
+              {heading}{' '}
+              <span className="muted" style={{ fontWeight: 600, fontSize: 16 }}>
+                {takeaway ? order?.customerName ?? '' : room?.name}
+              </span>
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
-              {order ? `Order #${order.orderNo} · ${order.staffName} · ${elapsed(order.createdAt, now)}` : `New order · ${table.seats} seats`}
+              {takeaway
+                ? `Parcel · ${order!.staffName} · ${elapsed(order!.createdAt, now)}`
+                : order
+                  ? `Order #${order.orderNo} · ${order.staffName} · ${elapsed(order.createdAt, now)}`
+                  : `New order · ${table!.seats} seats`}
             </div>
+            {takeaway && !order?.customerName && (
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                style={{ padding: 0, height: 'auto' }}
+                onClick={() => {
+                  setNameText('');
+                  setNameOpen(true);
+                }}
+              >
+                Add name (optional)
+              </Button>
+            )}
           </div>
           <div style={{ marginLeft: 'auto' }}>
             <Dropdown
               trigger={['click']}
               menu={{
                 items: menuActions,
-                onClick: ({ key }) => (key === 'move' ? setMoveOpen(true) : setCancelOpen(true)),
+                onClick: ({ key }) => {
+                  if (key === 'move') setMoveOpen(true);
+                  else if (key === 'name') {
+                    setNameText(order?.customerName ?? '');
+                    setNameOpen(true);
+                  } else setCancelOpen(true);
+                },
               }}
             >
               <Button size="large" shape="circle" icon={<MoreOutlined />} aria-label="More actions" />
@@ -285,13 +332,35 @@ export default function OrderPage() {
         open={drawer}
         onClose={() => setDrawer(false)}
         size="88%"
-        title={`Table ${table.label} · ${room?.name ?? ''}`}
+        title={takeaway ? `${heading}${order?.customerName ? ` · ${order.customerName}` : ''}` : `${heading} · ${room?.name ?? ''}`}
         styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
       >
         {ticket}
       </Drawer>
 
-      {order && (
+      {order && takeaway && (
+        <Modal
+          open={nameOpen}
+          title="Customer name"
+          okText="Save name"
+          onCancel={() => setNameOpen(false)}
+          onOk={async () => {
+            try {
+              await setCustomerName(order.id, nameText);
+              setNameOpen(false);
+            } catch (e) {
+              message.error(e instanceof Error ? e.message : String(e));
+            }
+          }}
+          centered
+          destroyOnHidden
+        >
+          <p className="muted">Printed on the kitchen slip and bill so the parcel goes to the right person.</p>
+          <Input size="large" value={nameText} onChange={(e) => setNameText(e.target.value)} maxLength={30} placeholder="Name or phone" autoFocus />
+        </Modal>
+      )}
+
+      {order && !takeaway && (
         <MoveTableModal
           open={moveOpen}
           onClose={() => setMoveOpen(false)}

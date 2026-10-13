@@ -23,7 +23,7 @@ An offline point-of-sale app for a small restaurant: tables, order taking, kitch
 
 | Section | What staff do there |
 | --- | --- |
-| **Tables** | See AC and Non-AC tables as Free / Occupied / Bill pending, with running total and time since the order started. Tap a table to start or continue its order. |
+| **Tables** | See AC and Non-AC tables as Free / Occupied / Bill pending, with running total and time since the order started. Tap a table to start or continue its order. Start a **takeaway** (parcel) order with **New takeaway**; takeaway orders have no table, any number can be open, and an optional customer name prints on the slip and bill. |
 | **Orders** | Active orders, and every kitchen ticket with its print status (Printed, Print failed, Confirm print). Retry or reprint here. |
 | **Billing** | Bill-pending tables. Apply a discount (owner), finalize the invoice, print it, and record Cash or UPI payment. |
 | **Sales** | Today's (or any day's) paid sales, cash/UPI split, discounts, tax, unpaid and cancelled bills, invoice history with reprint and refund. |

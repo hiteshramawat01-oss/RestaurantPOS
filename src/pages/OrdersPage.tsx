@@ -11,6 +11,7 @@ import { useActiveOrders, useRooms, useTables } from '../hooks/data';
 import { usePrintFlow } from '../hooks/usePrintFlow';
 import { elapsed, timeOf, useNow } from '../lib/time';
 import { confirmBrowserPrint, printKot } from '../printing/printService';
+import { kotPlace, orderPath } from '../domain/place';
 
 export const PRINT_TAG: Record<PrintStatus, { color: string; label: string }> = {
   pending: { color: 'default', label: 'Not printed' },
@@ -73,16 +74,16 @@ function ActiveOrders() {
           <button
             key={order.id}
             className="rowlist__row is-button"
-            onClick={() => navigate(order.status === 'billing' ? `/billing/${order.id}` : `/order/${order.tableId}`)}
+            onClick={() => navigate(orderPath(order))}
           >
-            <div style={{ fontSize: 22, fontWeight: 800, width: 52 }}>{t?.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, width: 52 }}>{order.type === 'takeaway' ? `#${order.orderNo}` : t?.label}</div>
             <div className="rowlist__main">
               <div className="rowlist__title">
                 Order #{order.orderNo}{' '}
                 {order.status === 'billing' ? <Tag color="magenta">Bill pending</Tag> : unsent ? <Tag color="gold">{unsent} not sent</Tag> : null}
               </div>
               <div className="rowlist__sub">
-                {r?.name} · {itemCount(items)} items · {order.staffName} · {elapsed(order.createdAt, now)}
+                {order.type === 'takeaway' ? `Takeaway${order.customerName ? ` · ${order.customerName}` : ''}` : r?.name} · {itemCount(items)} items · {order.staffName} · {elapsed(order.createdAt, now)}
               </div>
             </div>
             <div className="money" style={{ fontWeight: 800 }}>
@@ -136,12 +137,12 @@ function KitchenTickets() {
               <div className="rowlist__row" key={k.id}>
                 <div className="rowlist__main">
                   <div className="rowlist__title">
-                    KOT #{k.kotNo} · Table {k.tableLabel}{' '}
+                    KOT #{k.kotNo} · {kotPlace(k)}{' '}
                     <Tag color={KIND_TAG[k.kind].color}>{KIND_TAG[k.kind].label}</Tag>
                     <Tag color={tag.color}>{tag.label}</Tag>
                   </div>
                   <div className="rowlist__sub">
-                    {timeOf(k.createdAt)} · {k.roomName} · Order #{k.orderNo} · {k.staffName}
+                    {timeOf(k.createdAt)}{k.roomName ? ` · ${k.roomName}` : ''} · Order #{k.orderNo} · {k.staffName}
                   </div>
                   <div style={{ fontSize: 14, marginTop: 4 }}>{k.lines.map((l) => `${l.qty}× ${l.name}`).join(', ')}</div>
                   {k.lastError && k.printStatus === 'failed' && (

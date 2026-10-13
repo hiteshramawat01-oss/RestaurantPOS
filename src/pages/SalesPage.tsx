@@ -5,6 +5,7 @@ import { useState } from 'react';
 import ReceiptPreview from '../components/ReceiptPreview';
 import type { Invoice } from '../db/types';
 import { formatINR } from '../domain/money';
+import { invoicePlace } from '../domain/place';
 import { useSettings } from '../hooks/data';
 import { usePrintFlow } from '../hooks/usePrintFlow';
 import { timeOf } from '../lib/time';
@@ -135,7 +136,7 @@ export default function SalesPage() {
                       {i.paymentMethod && i.status === 'paid' && <Tag>{i.paymentMethod.toUpperCase()}</Tag>}
                     </div>
                     <div className="rowlist__sub">
-                      {timeOf(i.paidAt ?? i.createdAt)} · Table {i.tableLabel} ({i.roomName}) · Order #{i.orderNo}
+                      {timeOf(i.paidAt ?? i.createdAt)} · {invoicePlace(i)} · Order #{i.orderNo}
                     </div>
                   </div>
                   <div

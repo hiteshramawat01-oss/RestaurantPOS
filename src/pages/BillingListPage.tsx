@@ -22,13 +22,13 @@ export default function BillingListPage() {
     const r = rooms.find((x) => x.id === order.roomId);
     return (
       <button key={order.id} className="rowlist__row is-button" onClick={() => navigate(`/billing/${order.id}`)}>
-        <div style={{ fontSize: 22, fontWeight: 800, width: 52 }}>{t?.label}</div>
+        <div style={{ fontSize: 22, fontWeight: 800, width: 52 }}>{order.type === 'takeaway' ? `#${order.orderNo}` : t?.label}</div>
         <div className="rowlist__main">
           <div className="rowlist__title">
             Order #{order.orderNo} {order.invoiceId && <Tag color="magenta">Invoice issued</Tag>}
           </div>
           <div className="rowlist__sub">
-            {r?.name} · {itemCount(items)} items · {elapsed(order.createdAt, now)}
+            {order.type === 'takeaway' ? `Takeaway${order.customerName ? ` · ${order.customerName}` : ''}` : r?.name} · {itemCount(items)} items · {elapsed(order.createdAt, now)}
           </div>
         </div>
         <div className="money" style={{ fontWeight: 800, fontSize: 17 }}>

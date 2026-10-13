@@ -41,7 +41,11 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm ci
-      - run: npm run build
+      - name: Build web app (test channel)
+        run: npm run build
+        env:
+          BUILD_CHANNEL: test
+          BUILD_NUMBER: ${{ github.run_number }}
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
@@ -59,7 +63,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk restaurant-pos-test.apk
+          VERSION="$(node -p "require('./package.json').version")"
+          {
+            echo "Test build of the latest code, for trying the app. Installed test builds update from here (Settings → App updates)."
+            echo "Signed releases cannot update a test build: back up, uninstall, then install the release."
+            echo ""
+            echo "Version: ${VERSION}"
+            echo "Build number: ${GITHUB_RUN_NUMBER}"
+            echo ""
+            awk -v v="## ${VERSION}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md
+          } > notes.md
           gh release delete test-build --yes --cleanup-tag || true
           gh release create test-build restaurant-pos-test.apk --prerelease --target "$GITHUB_SHA" \
-            --title "Test build (for trying the app)" \
-            --notes "Debug build of the latest code on main, for testing on a phone. It cannot be updated in place by signed releases: back up your data, uninstall it, then install the signed release."
+            --title "Test build ${GITHUB_RUN_NUMBER} (v${VERSION})" --notes-file notes.md

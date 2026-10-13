@@ -109,7 +109,10 @@ export function kotBlocks(kot: Kot, opts: KotLayoutOptions): Block[] {
   b.push({ t: 'text', text: KIND_BANNER[kot.kind], align: 'center', bold: true, size: 'big', invert: kot.kind !== 'NEW' });
   b.push({ t: 'text', text: opts.restaurantName, align: 'center' });
   b.push({ t: 'divider' });
-  b.push({ t: 'row', left: `TABLE ${kot.tableLabel}`, right: kot.roomName, bold: true, size: 'tall' });
+  if (kot.takeaway) {
+    b.push({ t: 'text', text: `** TAKEAWAY #${kot.orderNo} - PACK **`, align: 'center', bold: true, size: 'tall' });
+    if (kot.customerName) b.push({ t: 'text', text: `Name: ${kot.customerName}`, bold: true });
+  } else b.push({ t: 'row', left: `TABLE ${kot.tableLabel}`, right: kot.roomName, bold: true, size: 'tall' });
   b.push({ t: 'row', left: `KOT #${kot.kotNo}`, right: `Order #${kot.orderNo}` });
   b.push({ t: 'row', left: dateTime(kot.createdAt), right: `By: ${kot.staffName}` });
   b.push({ t: 'divider', char: '=' });
@@ -138,7 +141,11 @@ export function invoiceBlocks(inv: Invoice, opts: { reprint?: boolean } = {}): B
   if (inv.status === 'cancelled') b.push({ t: 'text', text: '*** CANCELLED ***', align: 'center', bold: true, invert: true });
   if (opts.reprint) b.push({ t: 'text', text: 'DUPLICATE COPY', align: 'center' });
   b.push({ t: 'row', left: `No: ${inv.invoiceNo}`, right: dateTime(inv.createdAt) });
-  b.push({ t: 'row', left: `Table ${inv.tableLabel} (${inv.roomName})`, right: `Order #${inv.orderNo}` });
+  b.push({
+    t: 'row',
+    left: inv.takeaway ? `Takeaway${inv.customerName ? `: ${inv.customerName}` : ''}` : `Table ${inv.tableLabel} (${inv.roomName})`,
+    right: `Order #${inv.orderNo}`,
+  });
   b.push({ t: 'divider' });
   b.push({ t: 'row', left: 'Item', right: 'Amount', bold: true });
   b.push({ t: 'divider' });

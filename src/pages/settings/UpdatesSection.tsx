@@ -4,7 +4,7 @@ import { RELEASES_URL } from '../../config';
 import { dateTimeOf } from '../../lib/time';
 import { isNativeApp } from '../../printing/nativePrinter';
 import { checkForUpdates, useUpdateState } from '../../updates/updates';
-import { APP_VERSION, BUILD_TIME } from '../../version';
+import { APP_VERSION, BUILD_CHANNEL, BUILD_NUMBER, BUILD_TIME } from '../../version';
 
 export default function UpdatesSection() {
   const { lastCheck, needRefresh, applyUpdate } = useUpdateState();
@@ -18,10 +18,10 @@ export default function UpdatesSection() {
         size="small"
         bordered
         items={[
-          { key: 'v', label: 'Installed version', children: `${APP_VERSION}${BUILD_TIME ? ` (built ${dateTimeOf(Date.parse(BUILD_TIME))})` : ''}` },
+          { key: 'v', label: 'Installed version', children: `${APP_VERSION}${BUILD_CHANNEL === 'test' ? ` · test build ${BUILD_NUMBER}` : ''}${BUILD_TIME ? ` (built ${dateTimeOf(Date.parse(BUILD_TIME))})` : ''}` },
           { key: 'l', label: 'Latest release', children: lastCheck?.latest ?? '—' },
           { key: 'c', label: 'Last checked', children: lastCheck ? dateTimeOf(lastCheck.checkedAt) : 'Never' },
-          { key: 't', label: 'Type', children: native ? 'Android app (APK)' : 'Web app (PWA)' },
+          { key: 't', label: 'Type', children: native ? (BUILD_CHANNEL === 'test' ? 'Android app (test build)' : 'Android app (APK)') : 'Web app (PWA)' },
         ]}
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>

@@ -54,6 +54,7 @@ function Routed() {
         <Route path="/" element={<Navigate to="/tables" replace />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/order/:tableId" element={<OrderPage />} />
+        <Route path="/takeaway/:orderId" element={<OrderPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/billing" element={<BillingListPage />} />
         <Route path="/billing/:orderId" element={<BillingPage />} />

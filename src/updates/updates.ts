@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { GITHUB_OWNER, GITHUB_REPO, RELEASES_URL } from '../config';
 import { isNativeApp } from '../printing/nativePrinter';
-import { APP_VERSION } from '../version';
+import { APP_VERSION, BUILD_CHANNEL, BUILD_NUMBER } from '../version';
 
 export interface UpdateCheck {
   kind: 'pwa' | 'apk';
@@ -85,7 +85,41 @@ async function checkPwa(): Promise<UpdateCheck> {
   return { ...base, latest: info.version, releasedAt: info.releasedAt, notes: info.notes ?? [], updateAvailable: newer };
 }
 
+/** Test APKs follow the "test-build" pre-release, compared by CI build number. */
+async function checkTestApk(): Promise<UpdateCheck> {
+  const base: UpdateCheck = { kind: 'apk', installed: `${APP_VERSION} (test build ${BUILD_NUMBER})`, notes: [], checkedAt: Date.now(), updateAvailable: false };
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/tags/test-build`, {
+    headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store',
+  });
+  if (res.status === 404) return { ...base, error: 'No test build is published right now.' };
+  if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
+  const rel = (await res.json()) as {
+    body?: string;
+    published_at?: string;
+    html_url: string;
+    assets?: { name: string; browser_download_url: string }[];
+  };
+  const body = rel.body ?? '';
+  const build = Number(/Build number: (\d+)/.exec(body)?.[1] ?? 0);
+  const version = /Version: ([\w.-]+)/.exec(body)?.[1] ?? '?';
+  const apk = rel.assets?.find((a) => a.name.endsWith('.apk'));
+  return {
+    ...base,
+    latest: `${version} (test build ${build})`,
+    releasedAt: rel.published_at,
+    notes: body
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith('- '))
+      .map((l) => l.slice(2)),
+    updateAvailable: build > BUILD_NUMBER,
+    downloadUrl: apk?.browser_download_url ?? rel.html_url,
+  };
+}
+
 async function checkApk(): Promise<UpdateCheck> {
+  if (BUILD_CHANNEL === 'test') return checkTestApk();
   const base: UpdateCheck = { kind: 'apk', installed: APP_VERSION, notes: [], checkedAt: Date.now(), updateAvailable: false };
   // Public, unauthenticated read of the latest published release. No token is ever embedded.
   const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`, {

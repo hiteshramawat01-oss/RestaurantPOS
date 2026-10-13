@@ -63,16 +63,18 @@ export async function finalizeInvoice(orderId: string, discount: DiscountInput, 
       if (await db.invoices.where('invoiceNo').equals(invoiceNo).count())
         throw new PosError('DUP_INVOICE_NO', `Invoice number ${invoiceNo} already exists. Check invoice numbering in Settings.`);
 
-      const table = await db.diningTables.get(order.tableId);
-      const room = await db.rooms.get(order.roomId);
+      const takeaway = order.type === 'takeaway';
+      const table = takeaway ? undefined : await db.diningTables.get(order.tableId);
+      const room = takeaway ? undefined : await db.rooms.get(order.roomId);
       const invoice: Invoice = {
         id: newId(),
         invoiceNo,
         seq,
         orderId,
         orderNo: order.orderNo,
-        tableLabel: table?.label ?? '?',
+        tableLabel: takeaway ? 'Takeaway' : (table?.label ?? '?'),
         roomName: room?.name ?? '',
+        ...(takeaway ? { takeaway: true, customerName: order.customerName } : {}),
         lines,
         subtotal: bill.subtotal,
         discountType: bill.discountAmount > 0 ? discount.discountType : 'none',

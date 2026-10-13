@@ -58,6 +58,8 @@ export default function BillingPage() {
       </div>
     );
 
+  const takeaway = order.type === 'takeaway';
+  const orderEditPath = takeaway ? `/takeaway/${order.id}` : `/order/${order.tableId}`;
   const err = (e: unknown) => message.error(e instanceof Error ? e.message : String(e));
   const activeInvoice = invoice && invoice.status !== 'cancelled' ? invoice : null;
 
@@ -89,7 +91,7 @@ export default function BillingPage() {
       onOk: async () => {
         try {
           await confirmPayment(activeInvoice.id, method, actor);
-          message.success(`Paid. Table ${table?.label ?? ''} is free.`);
+          message.success(takeaway ? `Paid. Takeaway #${order.orderNo} is closed.` : `Paid. Table ${table?.label ?? ''} is free.`);
           navigate('/tables');
         } catch (e) {
           err(e);
@@ -103,7 +105,7 @@ export default function BillingPage() {
       <Button size="large" shape="circle" icon={<ArrowLeftOutlined />} aria-label="Back" onClick={() => navigate('/billing')} />
       <div>
         <h1 className="page__title">
-          Table {table?.label ?? invoice?.tableLabel} · Order #{order.orderNo}
+          {takeaway ? `Takeaway #${order.orderNo}${order.customerName ? ` · ${order.customerName}` : ''}` : `Table ${table?.label ?? invoice?.tableLabel} · Order #${order.orderNo}`}
         </h1>
         <div className="page__sub">
           {order.status === 'paid' ? 'Paid' : order.status === 'cancelled' ? 'Cancelled' : order.status === 'billing' ? 'Bill pending' : 'Open order'}
@@ -156,7 +158,7 @@ export default function BillingPage() {
             >
               Request bill
             </Button>
-            <Button size="large" onClick={() => navigate(`/order/${order.tableId}`)}>
+            <Button size="large" onClick={() => navigate(orderEditPath)}>
               Open order
             </Button>
           </div>
@@ -170,8 +172,10 @@ export default function BillingPage() {
     ? ({
         invoiceNo: 'DRAFT',
         orderNo: order.orderNo,
-        tableLabel: table?.label ?? '',
+        tableLabel: takeaway ? 'Takeaway' : (table?.label ?? ''),
         roomName: room?.name ?? '',
+        takeaway,
+        customerName: order.customerName,
         lines: preview.lines,
         subtotal: preview.subtotal,
         discountType: preview.discountAmount > 0 ? discountType : 'none',
@@ -266,7 +270,7 @@ export default function BillingPage() {
                 onClick={async () => {
                   try {
                     await reopenOrder(order.id, actor);
-                    navigate(`/order/${order.tableId}`);
+                    navigate(orderEditPath);
                   } catch (e) {
                     err(e);
                   }

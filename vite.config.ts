@@ -49,6 +49,9 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(buildTime),
+    // 'test' for the CI test APK (updates from the test-build pre-release), 'release' otherwise.
+    __BUILD_CHANNEL__: JSON.stringify(process.env.BUILD_CHANNEL === 'test' ? 'test' : 'release'),
+    __BUILD_NUMBER__: JSON.stringify(Number(process.env.BUILD_NUMBER) || 0),
   },
   plugins: [
     react(),

@@ -42,6 +42,45 @@ export async function openOrderForTable(tableId: string, actor: Actor): Promise<
   });
 }
 
+export function isTakeaway(order: Pick<Order, 'type'> | undefined): boolean {
+  return order?.type === 'takeaway';
+}
+
+/**
+ * Start a takeaway (parcel) order. It has no table, so any number can be
+ * open at the same time. The customer name is optional.
+ */
+export async function openTakeawayOrder(actor: Actor, customerName?: string): Promise<Order> {
+  return db.transaction('rw', db.orders, db.counters, async () => {
+    const now = Date.now();
+    const name = customerName?.trim().slice(0, 30);
+    const order: Order = {
+      id: newId(),
+      orderNo: await nextNumber('order'),
+      type: 'takeaway',
+      tableId: '',
+      roomId: '',
+      customerName: name || undefined,
+      status: 'open',
+      staffId: actor.id,
+      staffName: actor.name,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.orders.add(order);
+    return order;
+  });
+}
+
+export async function setCustomerName(orderId: string, name: string): Promise<void> {
+  await db.transaction('rw', db.orders, async () => {
+    const order = await db.orders.get(orderId);
+    if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'This order is already closed.');
+    const clean = name.trim().slice(0, 30);
+    await db.orders.update(orderId, { customerName: clean || undefined, updatedAt: Date.now() });
+  });
+}
+
 async function requireOpenOrder(orderId: string): Promise<Order> {
   const order = await db.orders.get(orderId);
   if (!order) throw new PosError('NO_ORDER', 'Order not found.');
@@ -129,6 +168,8 @@ export async function discardIfEmpty(orderId: string): Promise<boolean> {
 }
 
 async function tableAndRoom(order: Order) {
+  if (isTakeaway(order))
+    return { tableLabel: 'Takeaway', roomName: '', takeaway: true, customerName: order.customerName };
   const table = await db.diningTables.get(order.tableId);
   const room = await db.rooms.get(order.roomId);
   return { tableLabel: table?.label ?? '?', roomName: room?.name ?? '' };
@@ -220,6 +261,7 @@ export async function moveOrder(orderId: string, targetTableId: string, actor: A
   await db.transaction('rw', [db.orders, db.diningTables, db.audit, db.rooms], async () => {
     const order = await db.orders.get(orderId);
     if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'Only active orders can be moved.');
+    if (isTakeaway(order)) throw new PosError('TAKEAWAY', 'Takeaway orders are not on a table.');
     if (order.tableId === targetTableId) return;
     const target = await db.diningTables.get(targetTableId);
     if (!target || !target.active) throw new PosError('NO_TABLE', 'Target table not found.');

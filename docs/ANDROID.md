@@ -5,7 +5,7 @@ The APK is the same web app wrapped with [Capacitor](https://capacitorjs.com), p
 ## Getting an APK
 
 - **Signed release (use this in the restaurant):** push a version tag (see README → *Making a release*). The APK is attached to the GitHub Release.
-- **Debug build (quick testing):** every push to `main` runs CI; open **Actions → CI → latest run → Artifacts → restaurant-pos-debug-apk**. Debug builds use a throwaway key, so a newer debug APK cannot be installed over an older one, and debug and release APKs cannot replace each other. Uninstalling deletes the app's data, so make a backup first.
+- **Test build (quick testing):** every push to `main` runs CI and publishes the APK as the **test-build** pre-release on the Releases page. Test builds are signed with a fixed test key (`android/app/test-signing.p12`, public in this repo), so a newer test build installs over an older one and keeps the data; the installed test app finds new test builds in **Settings → App updates**. Test and signed release APKs cannot replace each other: back up, uninstall, install, restore. Use signed releases for real restaurant use.
 
 ## Signing key
 
