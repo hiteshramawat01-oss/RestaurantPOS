@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- The sign-in screen shows the app version, so you can see which version is installed.
+
 ## 1.1.0
 
 - Takeaway orders: start one from the Tables screen with "New takeaway"; any number can be open at once.

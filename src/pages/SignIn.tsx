@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Staff } from '../db/types';
 import { useSettings, useStaffList } from '../hooks/data';
 import { useSession } from '../session';
+import { APP_VERSION, BUILD_CHANNEL, BUILD_NUMBER } from '../version';
 
 export default function SignIn() {
   const staff = useStaffList();
@@ -76,6 +77,10 @@ export default function SignIn() {
             <small>{s.role === 'owner' ? 'Owner' : 'Staff'}</small>
           </button>
         ))}
+      </div>
+      <div className="muted" style={{ marginTop: 28, fontSize: 13 }}>
+        Version {APP_VERSION}
+        {BUILD_CHANNEL === 'test' ? ` · test build ${BUILD_NUMBER}` : ''}
       </div>
       {active.length === 0 && staff && (
         <Button style={{ marginTop: 16 }} onClick={() => location.reload()}>
