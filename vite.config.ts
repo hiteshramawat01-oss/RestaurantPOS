@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+// @ts-expect-error plain JS helper shared with the CI workflow
+import { nativeId } from './scripts/native-id.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 const buildTime = new Date().toISOString();
@@ -52,6 +54,7 @@ export default defineConfig({
     // 'test' for the CI test APK (updates from the test-build pre-release), 'release' otherwise.
     __BUILD_CHANNEL__: JSON.stringify(process.env.BUILD_CHANNEL === 'test' ? 'test' : 'release'),
     __BUILD_NUMBER__: JSON.stringify(Number(process.env.BUILD_NUMBER) || 0),
+    __NATIVE_ID__: JSON.stringify(nativeId()),
   },
   plugins: [
     react(),

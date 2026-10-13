@@ -85,6 +85,11 @@ jobs:
       - run: npm ci
       - name: Build web app for the APK
         run: npm run build
+      - name: Package web bundle for live updates
+        run: |
+          (cd dist && zip -qr ../web-bundle.zip .)
+          node scripts/native-id.mjs > native-id.txt
+          sha256sum web-bundle.zip | cut -d' ' -f1 > web-bundle.sha256
       - run: npx cap sync android
 
       - name: Restore signing key
@@ -120,7 +125,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: restaurant-pos-*.apk
+          path: |
+            restaurant-pos-*.apk
+            web-bundle.zip
+            web-bundle.sha256
+            native-id.txt
           if-no-files-found: error
 
   publish:
@@ -135,7 +144,13 @@ jobs:
       - name: Release notes from CHANGELOG.md
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          awk -v v="## ${VERSION}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          {
+            echo "Version: ${VERSION}"
+            echo "Native: $(cat native-id.txt)"
+            echo "Bundle SHA-256: $(cat web-bundle.sha256)"
+            echo ""
+            awk -v v="## ${VERSION}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md
+          } > notes.md
           echo "" >> notes.md
           echo "Web app: https://${GITHUB_REPOSITORY_OWNER}.github.io/${{ github.event.repository.name }}/" >> notes.md
           cat notes.md
@@ -143,5 +158,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" restaurant-pos-*.apk \
+          gh release create "$GITHUB_REF_NAME" restaurant-pos-*.apk web-bundle.zip \
             --title "Restaurant POS $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

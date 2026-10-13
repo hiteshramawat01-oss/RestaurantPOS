@@ -19,6 +19,7 @@ import SettingsPage from './pages/SettingsPage';
 import StorageError from './pages/StorageError';
 import PwaUpdater from './updates/PwaUpdater';
 import { isNativeApp } from './printing/nativePrinter';
+import { startNativeAutoUpdates } from './updates/updates';
 
 type BootState = { phase: 'loading' } | { phase: 'ready' } | { phase: 'error'; error: string };
 
@@ -30,6 +31,8 @@ function useBoot(): BootState {
       try {
         await db.open();
         await recoverInterruptedPrints();
+        // The database opened fine: confirm this app version works (else the updater rolls back) and look for updates.
+        void startNativeAutoUpdates();
         const persist = await requestPersistentStorage();
         await db.meta.put({ key: 'storagePersistence', value: persist });
         if (!cancelled) setState({ phase: 'ready' });

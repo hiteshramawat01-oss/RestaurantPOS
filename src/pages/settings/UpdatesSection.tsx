@@ -7,7 +7,7 @@ import { checkForUpdates, useUpdateState } from '../../updates/updates';
 import { APP_VERSION, BUILD_CHANNEL, BUILD_NUMBER, BUILD_TIME } from '../../version';
 
 export default function UpdatesSection() {
-  const { lastCheck, needRefresh, applyUpdate } = useUpdateState();
+  const { lastCheck, needRefresh, applyUpdate, live, applyLive } = useUpdateState();
   const [busy, setBusy] = useState(false);
   const native = isNativeApp();
 
@@ -39,6 +39,11 @@ export default function UpdatesSection() {
         >
           Check for updates
         </Button>
+        {native && live?.status === 'ready' && applyLive && (
+          <Button type="primary" size="large" onClick={() => applyLive()}>
+            Restart now
+          </Button>
+        )}
         {!native && needRefresh && applyUpdate && (
           <Button type="primary" size="large" onClick={() => applyUpdate()}>
             Update now
@@ -65,9 +70,20 @@ export default function UpdatesSection() {
                   ))}
                 </ul>
               )}
-              {native ? (
+              {native && lastCheck.mode === 'live' ? (
+                live?.status === 'ready' ? (
+                  <p style={{ margin: 0 }}>
+                    Downloaded. It installs by itself the next time the app is closed, or tap “Restart now”. Your data is kept.
+                  </p>
+                ) : live?.status === 'error' ? (
+                  <p style={{ margin: 0 }}>Download failed: {live.error}. It will try again automatically.</p>
+                ) : (
+                  <p style={{ margin: 0 }}>Downloading in the background…</p>
+                )
+              ) : native ? (
                 <p style={{ margin: 0 }}>
-                  Download the new APK and install it over this one. Android keeps the app’s data when the update is signed with the same key.{' '}
+                  This update changes the Android app itself, so it has to be installed once by hand. Download the APK and
+                  install it over this one; your data is kept.{' '}
                   <a href={lastCheck.downloadUrl ?? RELEASES_URL} target="_blank" rel="noreferrer">
                     Download update
                   </a>
@@ -82,6 +98,7 @@ export default function UpdatesSection() {
         />
       )}
       <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+        The app checks for updates by itself every 30 minutes when online and installs them the next time it is closed.
         Updates only replace the app’s program files. Orders, bills, menu and settings stay on this device. Make a backup before
         major updates anyway.
       </p>

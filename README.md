@@ -139,7 +139,7 @@ The Release workflow refuses to run if the tag does not match `package.json`.
 ### How installed apps update
 
 - **Web app:** each release publishes `version.json` (version, date, notes). **Settings → App updates → Check for updates** compares it with the installed version; the service worker downloads the new files in the background and a banner offers **Update now**. The app also checks hourly while online. Updates replace only program files; IndexedDB data (orders, bills, menu, settings) is never cleared.
-- **APK:** **Check for updates** reads the latest published GitHub Release (public, no token in the app) and offers a link to download the new APK, which you install over the old one. Android keeps the app's data as long as the new APK is signed with the same key. The app never downloads or runs code by itself.
+- **APK:** the app checks the latest published GitHub Release (public, no token in the app) on start and every 30 minutes. Normal updates install themselves: the new screens download in the background, are verified by SHA-256, and switch in the next time the app is closed (with automatic rollback if they fail to start). Only updates that change the Android part itself need a new APK, which you install over the old one; the app tells you when. Details in [docs/ANDROID.md](docs/ANDROID.md#updating-the-installed-apk).
 
 Both check *published releases*, not the latest commit.
 

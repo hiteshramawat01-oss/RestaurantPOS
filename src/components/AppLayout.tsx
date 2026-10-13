@@ -10,6 +10,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { NavLink, Outlet } from 'react-router-dom';
 import { db } from '../db/db';
 import OfflineNotice from './OfflineNotice';
+import LiveUpdateBanner from '../updates/LiveUpdateBanner';
 
 const NAV = [
   { to: '/tables', label: 'Tables', icon: <AppstoreOutlined /> },
@@ -35,6 +36,7 @@ export default function AppLayout() {
   return (
     <div className="shell">
       <OfflineNotice />
+      <LiveUpdateBanner />
       <nav className="nav" aria-label="Main">
         {NAV.map((n) => {
           const count = n.badge ? (badges?.[n.badge] ?? 0) : 0;

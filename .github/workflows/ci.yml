@@ -46,6 +46,11 @@ jobs:
         env:
           BUILD_CHANNEL: test
           BUILD_NUMBER: ${{ github.run_number }}
+      - name: Package web bundle for live updates
+        run: |
+          (cd dist && zip -qr ../web-bundle.zip .)
+          echo "NATIVE_ID=$(node scripts/native-id.mjs)" >> "$GITHUB_ENV"
+          echo "BUNDLE_SHA=$(sha256sum web-bundle.zip | cut -d' ' -f1)" >> "$GITHUB_ENV"
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
@@ -65,14 +70,16 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk restaurant-pos-test.apk
           VERSION="$(node -p "require('./package.json').version")"
           {
-            echo "Test build of the latest code, for trying the app. Installed test builds update from here (Settings → App updates)."
+            echo "Test build of the latest code, for trying the app. Installed test builds update themselves from here."
             echo "Signed releases cannot update a test build: back up, uninstall, then install the release."
             echo ""
             echo "Version: ${VERSION}"
             echo "Build number: ${GITHUB_RUN_NUMBER}"
+            echo "Native: ${NATIVE_ID}"
+            echo "Bundle SHA-256: ${BUNDLE_SHA}"
             echo ""
             awk -v v="## ${VERSION}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md
           } > notes.md
           gh release delete test-build --yes --cleanup-tag || true
-          gh release create test-build restaurant-pos-test.apk --prerelease --target "$GITHUB_SHA" \
+          gh release create test-build restaurant-pos-test.apk web-bundle.zip --prerelease --target "$GITHUB_SHA" \
             --title "Test build ${GITHUB_RUN_NUMBER} (v${VERSION})" --notes-file notes.md

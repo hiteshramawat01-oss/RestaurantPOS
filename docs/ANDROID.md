@@ -48,11 +48,16 @@ The APK version comes from `package.json` (`versionName`), and `versionCode` is 
 
 ## Updating the installed APK
 
-1. Settings → App updates → **Check for updates** (needs internet). It reads the latest GitHub Release.
-2. Tap **Download update**, open the downloaded APK and install it over the existing app.
-3. Data stays, because the package name and signing key are the same.
+**Automatic (most updates).** Each release (and each test build) also publishes `web-bundle.zip`: the app's screens and logic. The installed app checks this repository's GitHub releases on start and every 30 minutes while online. When a newer version exists it downloads the bundle in the background ([@capgo/capacitor-updater](https://github.com/Cap-go/capacitor-updater) in manual mode, no Capgo cloud, statistics switched off) and installs it the next time the app is closed or sent to the background. Staff can also tap **Restart now**. Data stays, because the app keeps the same internal address.
 
-Unlike the web app, the APK cannot update itself silently. This is deliberate: the app never downloads and runs code on its own, and no GitHub token is stored in it.
+Safety checks:
+
+- Only this repository's own releases are used, over HTTPS, without any token in the app.
+- The bundle's SHA-256 must match the value written in the release notes by the workflow, or it is rejected.
+- After an update starts, the app must report that it opened its database correctly within 15 seconds, or the updater switches back to the previous version.
+- A bundle is used only if it was built for the same native app: the workflow records a fingerprint of the Android code, Gradle config and Capacitor plugin versions (`scripts/native-id.mjs`) and the app compares it with its own.
+
+**Manual (when the Android part changes).** If the native fingerprint differs (new plugin, printer code, Capacitor upgrade), Settings → App updates shows **Download update**: open the APK and install it over the existing app. Data stays, because the package name and signing key are the same.
 
 ## Native printing plugin
 

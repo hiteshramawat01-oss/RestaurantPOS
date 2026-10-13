@@ -5,3 +5,4 @@ declare const __APP_VERSION__: string;
 declare const __BUILD_TIME__: string;
 declare const __BUILD_CHANNEL__: 'test' | 'release';
 declare const __BUILD_NUMBER__: number;
+declare const __NATIVE_ID__: string;
