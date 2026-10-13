@@ -27,6 +27,8 @@ jobs:
   android-debug:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,3 +53,13 @@ jobs:
           name: restaurant-pos-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+      - name: Publish test APK on the Releases page (pre-release, not used for updates)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk restaurant-pos-test.apk
+          gh release delete test-build --yes --cleanup-tag || true
+          gh release create test-build restaurant-pos-test.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Test build (for trying the app)" \
+            --notes "Debug build of the latest code on main, for testing on a phone. It cannot be updated in place by signed releases: back up your data, uninstall it, then install the signed release."
