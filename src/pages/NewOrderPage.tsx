@@ -1,4 +1,5 @@
-import { ArrowLeftOutlined, CheckOutlined, CloseCircleFilled, EditOutlined, PrinterOutlined, SearchOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseCircleFilled, CloseOutlined, EditOutlined, PrinterOutlined, SearchOutlined } from '@ant-design/icons';
+import { TaskBar } from '../components/AppMenu';
 import { App, Button, Input, Modal, Spin } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState } from 'react';
@@ -169,24 +170,21 @@ export default function NewOrderPage() {
 
   return (
     <div className="flow">
-      <header className="flow__head">
-        {step !== 'done' ? (
-          <button className="flow__back" onClick={back} aria-label="Back">
-            <ArrowLeftOutlined />
-          </button>
-        ) : (
-          <span className="flow__back-space" />
-        )}
-        <div className="flow__heading">
-          <div className="flow__title">{adding ? 'Add items' : 'New order'}</div>
-          {placeLabel && step !== 'where' && <div className="flow__place">{placeLabel}</div>}
-        </div>
-        {step !== 'done' && (
-          <button className="flow__close" onClick={leave} aria-label="Close">
-            Close
-          </button>
-        )}
-      </header>
+      <TaskBar
+        title={adding ? 'Add items' : 'New order'}
+        sub={placeLabel && step !== 'where' ? placeLabel : undefined}
+        onBack={step !== 'done' ? back : undefined}
+        backLabel="Back"
+        trailing={
+          step !== 'done' ? (
+            <button className="iconbtn" onClick={leave} aria-label="Close">
+              <CloseOutlined />
+            </button>
+          ) : (
+            <span className="iconbtn-space" />
+          )
+        }
+      />
 
       <ol className="flow__steps" aria-label="Steps">
         {steps.map((s, i) => (
@@ -381,8 +379,8 @@ function StepDishes({ lines, onAdd, count, total, onNext }: { lines: Line[]; onA
     <div className="flow__body flow__body--dishes">
       <div className="flow__sticky">
         <Input
-          size="large"
-          allowClear={{ clearIcon: <CloseCircleFilled style={{ fontSize: 18 }} /> }}
+          className="searchbar"
+          allowClear={{ clearIcon: <CloseCircleFilled style={{ fontSize: 20 }} /> }}
           prefix={<SearchOutlined />}
           placeholder="Search dishes"
           value={query}

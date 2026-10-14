@@ -1,4 +1,5 @@
-import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons';
+import { PrinterOutlined } from '@ant-design/icons';
+import { TaskBar } from '../components/AppMenu';
 import { Alert, App, Button, Input, InputNumber, Modal, Spin } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
@@ -143,16 +144,7 @@ export default function PayPage() {
 
   return (
     <div className="flow">
-      <header className="flow__head">
-        <button className="flow__back" onClick={() => navigate(`/order/${orderId}`)} aria-label="Back to the order">
-          <ArrowLeftOutlined />
-        </button>
-        <div className="flow__heading">
-          <div className="flow__title">Payment</div>
-          <div className="flow__place">{place}</div>
-        </div>
-        <span className="flow__back-space" />
-      </header>
+      <TaskBar title="Payment" sub={place} onBack={() => navigate(`/order/${orderId}`)} backLabel="Back to the order" />
 
       <div className="flow__body pay">
         {closed ? (

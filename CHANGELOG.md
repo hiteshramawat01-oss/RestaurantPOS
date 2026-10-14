@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0
+
+- New look that follows Google Material Design 3: Material colours, Roboto type, cards, and a slide-out navigation drawer.
+- Bigger touch areas: every button, tick and icon is at least 48dp, text fields and main buttons are 56dp, and the top bar is 64dp, as Android recommends.
+- The New order button is a large Material floating button. Messages appear at the bottom of the screen.
+
 ## 1.4.0
 
 - New, simpler app. The home screen shows every order in progress with its status, and a big New order button.

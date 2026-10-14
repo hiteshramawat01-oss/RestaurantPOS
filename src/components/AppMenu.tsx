@@ -11,7 +11,7 @@ const LINKS = [
   { to: '/settings', label: 'Printer and updates', icon: <SettingOutlined /> },
 ];
 
-/** Round "App Menu" button that opens the side menu. */
+/** Navigation icon (48dp) that opens the modal navigation drawer. */
 export default function AppMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -19,15 +19,24 @@ export default function AppMenu() {
   const settings = useSettings();
   return (
     <>
-      <button className="appmenu-btn" onClick={() => setOpen(true)} aria-label="Open app menu">
+      <button className="iconbtn" onClick={() => setOpen(true)} aria-label="Open app menu">
         <MenuOutlined />
       </button>
-      <Drawer open={open} onClose={() => setOpen(false)} placement="left" size={300} title={settings?.restaurant.name ?? 'Menu'}>
-        <nav className="appmenu">
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        placement="left"
+        size="min(360px, 85vw)"
+        closable={false}
+        rootClassName="navdrawer"
+      >
+        <div className="navdrawer__headline">{settings?.restaurant.name ?? ''}</div>
+        <nav>
           {LINKS.map((l) => (
             <button
               key={l.to}
-              className={`appmenu__item${pathname === l.to ? ' is-on' : ''}`}
+              className={`navdrawer__item${pathname === l.to ? ' is-on' : ''}`}
+              aria-current={pathname === l.to ? 'page' : undefined}
               onClick={() => {
                 setOpen(false);
                 navigate(l.to);
@@ -38,21 +47,48 @@ export default function AppMenu() {
             </button>
           ))}
         </nav>
-        <div className="muted" style={{ fontSize: 13, marginTop: 24 }}>
-          Version {APP_VERSION}
-        </div>
+        <div className="navdrawer__foot">Version {APP_VERSION}</div>
       </Drawer>
     </>
   );
 }
 
-/** Header for inner screens: app menu, title, optional action on the right. */
+/** Small top app bar (64dp): navigation icon, title, optional trailing actions. */
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
-    <header className="topbar">
+    <header className="appbar">
       <AppMenu />
-      <h1 className="topbar__title">{title}</h1>
-      <div className="topbar__right">{right}</div>
+      <h1 className="appbar__title">{title}</h1>
+      {right && <div className="appbar__actions">{right}</div>}
     </header>
+  );
+}
+
+/** Top app bar for full-screen tasks: back arrow, title + subtitle, optional trailing icon. */
+export function TaskBar({ title, sub, onBack, backLabel, trailing }: { title: string; sub?: ReactNode; onBack?: () => void; backLabel: string; trailing?: ReactNode }) {
+  return (
+    <header className="appbar">
+      {onBack ? (
+        <button className="iconbtn" onClick={onBack} aria-label={backLabel}>
+          <BackIcon />
+        </button>
+      ) : (
+        <span className="iconbtn-space" />
+      )}
+      <div className="appbar__titles">
+        <h1 className="appbar__title">{title}</h1>
+        {sub && <div className="appbar__sub">{sub}</div>}
+      </div>
+      {trailing}
+    </header>
+  );
+}
+
+function BackIcon() {
+  // Material "arrow_back" (24dp)
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style={{ position: 'relative' }}>
+      <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+    </svg>
   );
 }

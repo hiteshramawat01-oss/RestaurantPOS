@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, PlusOutlined, PrinterOutlined, WalletOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, PlusOutlined, PrinterOutlined, WalletOutlined } from '@ant-design/icons';
 import { App, Button, Input, Modal, Spin } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -6,6 +6,7 @@ import type { OrderItem } from '../db/types';
 import { formatINR } from '../domain/money';
 import { STAGE_LABEL, summarize, type OrderSummary } from '../domain/orderState';
 import { useOpenOrders } from '../hooks/data';
+import { TaskBar } from '../components/AppMenu';
 import { lineAmount } from '../domain/totals';
 import { usePrintFlow } from '../hooks/usePrintFlow';
 import { elapsed, useNow } from '../lib/time';
@@ -92,26 +93,19 @@ export default function OrderPage() {
 
   return (
     <div className="flow">
-      <header className="flow__head">
-        <button className="flow__back" onClick={onClose} aria-label="Back to orders">
-          <ArrowLeftOutlined />
-        </button>
-        <div className="flow__heading">
-          {s && (
-            <>
-              <div className="osheet__title">
-                {s.title} <span className="muted">{s.subtitle}</span>
-              </div>
-              <div className="osheet__sub">
-                Order #{s.order.orderNo} · {elapsed(s.order.createdAt, now)} ·{' '}
-                <span className={`osheet__stage is-${s.stage}`}>
-                  {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
-                </span>
-              </div>
-            </>
-          )}
+      <TaskBar
+        title={s ? `${s.title} · ${s.subtitle}` : 'Order'}
+        sub={s ? `Order #${s.order.orderNo} · ${elapsed(s.order.createdAt, now)}` : undefined}
+        onBack={onClose}
+        backLabel="Back to orders"
+      />
+      {s && (
+        <div style={{ marginBottom: 8 }}>
+          <span className={`status is-${s.stage}`}>
+            {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
+          </span>
         </div>
-      </header>
+      )}
       {!data && <Spin style={{ display: 'block', margin: '80px auto' }} />}
       {data && !s && (
         <div className="flow__body">
@@ -123,7 +117,7 @@ export default function OrderPage() {
           </div>
         </div>
       )}
-      <div className="flow__body opage">
+      <div className="flow__body">
       {s && (
         <>
           {s.order.status === 'open' && s.servable > 0 && (
@@ -131,12 +125,12 @@ export default function OrderPage() {
               Tick each dish when it reaches the table.
             </p>
           )}
-          <ul className="osheet__lines">
+          <ul className="olist">
             {lines.map((i) => (
               <li key={i.id} className={`${i.voided ? 'is-void' : ''}${i.deliveredAt ? ' is-served' : ''}`}>
                 {i.kotId && !i.voided && s.order.status !== 'paid' ? (
                   <button
-                    className={`osheet__tick${i.deliveredAt ? ' is-on' : ''}`}
+                    className={`tick${i.deliveredAt ? ' is-on' : ''}`}
                     aria-pressed={!!i.deliveredAt}
                     aria-label={i.deliveredAt ? `${i.name} served. Tap to undo` : `Mark ${i.name} served`}
                     onClick={async () => {
@@ -150,18 +144,18 @@ export default function OrderPage() {
                     <CheckOutlined />
                   </button>
                 ) : (
-                  <span className="osheet__tick-space" />
+                  <span className="iconbtn-space" />
                 )}
-                <span className="osheet__qty">{i.qty} ×</span>
-                <span className="osheet__name">
+                <span className="olist__qty">{i.qty} ×</span>
+                <span className="olist__name">
                   {i.name}
-                  {i.note && <span className="osheet__note">{i.note}</span>}
-                  {!i.kotId && !i.voided && <span className="osheet__note">Not sent to kitchen</span>}
+                  {i.note && <span className="olist__note">{i.note}</span>}
+                  {!i.kotId && !i.voided && <span className="olist__note">Not sent to kitchen</span>}
                 </span>
-                <span className="osheet__amt">{formatINR(lineAmount(i))}</span>
+                <span className="olist__amt">{formatINR(lineAmount(i))}</span>
                 {!i.voided && i.kotId && s.order.status === 'open' ? (
                   <button
-                    className="osheet__x"
+                    className="iconbtn iconbtn--sm"
                     aria-label={`Remove ${i.name}`}
                     onClick={() => {
                       setVoidFor(i);
@@ -171,17 +165,17 @@ export default function OrderPage() {
                     <CloseOutlined />
                   </button>
                 ) : (
-                  <span className="osheet__x-space" />
+                  <span className="iconbtn-space" />
                 )}
               </li>
             ))}
           </ul>
-          <div className="osheet__total">
+          <div className="ototal">
             <span>Total</span>
             <span>{formatINR(s.total)}</span>
           </div>
 
-          <div className="osheet__actions">
+          <div className="oactions">
             <Button
               size="large"
               className="btn-xl"
@@ -221,6 +215,8 @@ export default function OrderPage() {
               </Button>
             ) : null}
             <Button
+              block
+              rootClassName="is-wide"
               size="large"
               className="btn-xl"
               type={delivered || s.unprinted.length === 0 ? 'primary' : 'default'}
@@ -232,7 +228,7 @@ export default function OrderPage() {
             </Button>
           </div>
 
-          <div className="osheet__links">
+          <div className="olinks">
             {delivered && (
               <Button type="link" onClick={() => markNotDelivered(s.order.id)}>
                 Undo all served

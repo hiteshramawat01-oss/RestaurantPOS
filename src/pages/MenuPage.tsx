@@ -133,14 +133,13 @@ export default function MenuPage() {
 
   return (
     <div className="page">
-      <TopBar
-        title="Dishes and prices"
-        right={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openItem('new')} disabled={!categories.length}>
-            Add dish
-          </Button>
-        }
-      />
+      <TopBar title="Dishes and prices" />
+      {isOwner && categories.length > 0 && (
+        <button className="efab" onClick={() => openItem('new')}>
+          <PlusOutlined />
+          <span>Add dish</span>
+        </button>
+      )}
       <p className="muted" style={{ margin: '0 0 8px' }}>
         Tap a dish to change its name or price. Switch it off when it runs out.
       </p>

@@ -1,7 +1,7 @@
 {
   "name": "restaurant-pos",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,6 @@
     "@capacitor/filesystem": "^8.1.4",
     "@capacitor/share": "^8.0.3",
     "@capgo/capacitor-updater": "^8.52.1",
-    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "antd": "^6.6.6",
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",

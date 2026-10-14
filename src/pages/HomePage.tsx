@@ -37,13 +37,16 @@ export default function HomePage() {
 
   return (
     <div className="home">
-      <header className="home__head">
+      <header className="appbar appbar--center">
         <AppMenu />
-        <div className="home__name">{settings?.restaurant.name ?? ''}</div>
-        <div className="home__count" aria-label="Orders in progress">
-          {orders.length > 0 && orders.length}
-        </div>
+        <h1 className="appbar__title">{settings?.restaurant.name ?? ''}</h1>
+        <span className="iconbtn-space" />
       </header>
+      {orders.length > 0 && (
+        <div className="home__section">
+          {orders.length} order{orders.length === 1 ? '' : 's'} in progress
+        </div>
+      )}
 
       {!data ? (
         <Spin style={{ display: 'block', margin: '80px auto' }} />
@@ -63,8 +66,10 @@ export default function HomePage() {
             >
               <div className="ocard__title">{s.title}</div>
               <div className="ocard__sub">{s.subtitle}</div>
-              <div className={`ocard__stage is-${s.stage}`}>
-                {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
+              <div className="ocard__stage">
+                <span className={`status is-${s.stage}`}>
+                  {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
+                </span>
               </div>
               <div className="ocard__money">
                 {s.count} item{s.count === 1 ? '' : 's'} · {formatPrice(s.total)}
@@ -86,8 +91,8 @@ export default function HomePage() {
         </div>
       )}
 
-      <button className="fab" onClick={() => navigate('/new')}>
-        <PlusOutlined className="fab__icon" />
+      <button className="efab efab--lg efab--center" onClick={() => navigate('/new')}>
+        <PlusOutlined />
         <span>New order</span>
       </button>
 
