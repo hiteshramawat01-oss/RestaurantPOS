@@ -192,7 +192,6 @@ export default function BillingPage() {
     : null;
 
   const change = activeInvoice && cashReceived ? rupeesToPaise(cashReceived) - activeInvoice.total : null;
-  const noTaxConfigured = !settings.taxes.some((t) => t.enabled);
 
   return (
     <div className="page">
@@ -248,11 +247,6 @@ export default function BillingPage() {
                     inputMode="decimal"
                     style={{ width: 140 }}
                   />
-                </div>
-              )}
-              {noTaxConfigured && (
-                <div className="muted" style={{ marginTop: 12, fontSize: 13 }}>
-                  No tax is being charged. Set up applicable taxes in Settings → Taxes.
                 </div>
               )}
               <Divider />
@@ -329,7 +323,7 @@ export default function BillingPage() {
                 )}
               </div>
               <div className="muted" style={{ fontSize: 13, marginTop: 10 }}>
-                This invoice is final. To change items or discount, the owner cancels it and a new invoice is made.
+                This invoice is final. To change items or discount, cancel it and make a new one.
               </div>
             </div>
           )}

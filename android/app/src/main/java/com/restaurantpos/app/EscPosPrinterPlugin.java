@@ -2,6 +2,7 @@ package com.restaurantpos.app;
 
 import android.util.Base64;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -12,13 +13,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
 import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Sends raw ESC/POS bytes to a network thermal printer over TCP
@@ -168,6 +177,89 @@ public class EscPosPrinterPlugin extends Plugin {
                 : e instanceof UnknownHostException ? "UNKNOWN_HOST"
                 : "IO";
         call.reject(describe(host, port, e), code, e);
+    }
+
+    /**
+     * Find printers on the same Wi-Fi network as this phone: every address in
+     * the phone's local /24 network is tried on the printer port (usually 9100,
+     * the standard raw-printing port of network receipt printers). Takes a few
+     * seconds. No extra Android permission is needed for this.
+     */
+    @PluginMethod
+    public void scan(PluginCall call) {
+        final int port = call.getInt("port", DEFAULT_PORT);
+        final int timeout = Math.max(150, Math.min(2000, call.getInt("timeoutMs", 500)));
+
+        final Inet4Address local = localWifiAddress();
+        if (local == null) {
+            call.reject("This phone is not connected to a Wi-Fi network", "NO_WIFI");
+            return;
+        }
+        final byte[] ip = local.getAddress();
+        final String prefix = (ip[0] & 0xff) + "." + (ip[1] & 0xff) + "." + (ip[2] & 0xff) + ".";
+        final int self = ip[3] & 0xff;
+
+        new Thread(() -> {
+            ExecutorService pool = Executors.newFixedThreadPool(48);
+            final List<Integer> found = Collections.synchronizedList(new ArrayList<>());
+            for (int i = 1; i <= 254; i++) {
+                if (i == self) continue;
+                final int host = i;
+                pool.execute(() -> {
+                    try (Socket socket = new Socket()) {
+                        socket.connect(new InetSocketAddress(prefix + host, port), timeout);
+                        found.add(host);
+                    } catch (IOException ignored) {
+                        // nothing listening there
+                    }
+                });
+            }
+            pool.shutdown();
+            try {
+                pool.awaitTermination(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            List<Integer> sorted;
+            synchronized (found) {
+                sorted = new ArrayList<>(found);
+            }
+            Collections.sort(sorted);
+            JSArray printers = new JSArray();
+            for (int h : sorted) {
+                JSObject p = new JSObject();
+                p.put("host", prefix + h);
+                p.put("port", port);
+                printers.put(p);
+            }
+            JSObject result = new JSObject();
+            result.put("localIp", local.getHostAddress());
+            result.put("network", prefix + "0/24");
+            result.put("printers", printers);
+            call.resolve(result);
+        }, "printer-scan").start();
+    }
+
+    /** The phone's own IPv4 address on Wi-Fi (or Ethernet), if connected. */
+    private static Inet4Address localWifiAddress() {
+        Inet4Address fallback = null;
+        try {
+            for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!nif.isUp() || nif.isLoopback() || nif.isVirtual()) continue;
+                String name = nif.getName() == null ? "" : nif.getName();
+                if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("tun") || name.startsWith("dummy")) continue;
+                for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
+                    InetAddress a = ia.getAddress();
+                    if (!(a instanceof Inet4Address) || a.isLoopbackAddress() || a.isLinkLocalAddress()) continue;
+                    // Wi-Fi / Ethernet: any normal IPv4 address. Other interfaces only if private (LAN) addresses.
+                    if (name.startsWith("wlan") || name.startsWith("eth")) return (Inet4Address) a;
+                    if (fallback == null && a.isSiteLocalAddress()) fallback = (Inet4Address) a;
+                }
+            }
+        } catch (Exception ignored) {
+            // treated as "not connected"
+        }
+        return fallback;
     }
 
     @Override

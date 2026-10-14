@@ -2,6 +2,9 @@ import type { Transaction } from 'dexie';
 import { newId } from '../lib/id';
 import type { AppSettings, Category, DiningTable, MenuItem, Room, Staff } from './types';
 
+/** The restaurant's tables: AC family tables 1–5 and Non-AC tables 1–8. */
+export const TABLE_LAYOUT = { AC: 5, 'Non-AC': 8 } as const;
+
 export function defaultSettings(): AppSettings {
   return {
     key: 'app',
@@ -28,7 +31,7 @@ export function defaultSettings(): AppSettings {
       autoPrintKot: true,
       copiesKot: 1,
     },
-    requirePin: true,
+    requirePin: false,
     setupComplete: false,
   };
 }
@@ -75,14 +78,12 @@ export function seedRows() {
   const nonAc: Room = { id: newId(), name: 'Non-AC', sortOrder: 2, active: true };
 
   const tables: DiningTable[] = [];
-  const acSeats = [4, 4, 4, 4, 4, 4];
-  acSeats.forEach((seats, i) =>
-    tables.push({ id: newId(), roomId: ac.id, label: `A${i + 1}`, seats, sortOrder: i + 1, active: true }),
-  );
-  const nonAcSeats = [4, 4, 4, 4, 4, 2, 2, 2];
-  nonAcSeats.forEach((seats, i) =>
-    tables.push({ id: newId(), roomId: nonAc.id, label: `N${i + 1}`, seats, sortOrder: i + 1, active: true }),
-  );
+  for (const [room, count] of [
+    [ac, TABLE_LAYOUT.AC],
+    [nonAc, TABLE_LAYOUT['Non-AC']],
+  ] as const)
+    for (let i = 1; i <= count; i++)
+      tables.push({ id: newId(), roomId: room.id, label: String(i), seats: 4, sortOrder: i, active: true });
 
   const categories: Category[] = [];
   const menuItems: MenuItem[] = [];

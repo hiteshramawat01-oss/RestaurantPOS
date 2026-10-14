@@ -8,6 +8,12 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
  */
 export interface EscPosPrinterPlugin {
   print(options: { host: string; port: number; data: string; timeoutMs?: number }): Promise<{ bytesSent: number }>;
+  /** Find printers listening on `port` in the phone's Wi-Fi network (/24). */
+  scan(options: { port?: number; timeoutMs?: number }): Promise<{
+    localIp: string;
+    network: string;
+    printers: { host: string; port: number }[];
+  }>;
   status(options: { host: string; port: number; timeoutMs?: number }): Promise<{
     reachable: boolean;
     statusByte?: number;

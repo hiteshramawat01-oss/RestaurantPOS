@@ -192,10 +192,10 @@ export default function OrderPage() {
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
               {takeaway
-                ? `Parcel · ${order!.staffName} · ${elapsed(order!.createdAt, now)}`
+                ? `Parcel · ${elapsed(order!.createdAt, now)}`
                 : order
-                  ? `Order #${order.orderNo} · ${order.staffName} · ${elapsed(order.createdAt, now)}`
-                  : `New order · ${table!.seats} seats`}
+                  ? `Order #${order.orderNo} · ${elapsed(order.createdAt, now)}`
+                  : 'New order'}
             </div>
             {takeaway && !order?.customerName && (
               <Button

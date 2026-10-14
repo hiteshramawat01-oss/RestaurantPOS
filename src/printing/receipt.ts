@@ -114,7 +114,7 @@ export function kotBlocks(kot: Kot, opts: KotLayoutOptions): Block[] {
     if (kot.customerName) b.push({ t: 'text', text: `Name: ${kot.customerName}`, bold: true });
   } else b.push({ t: 'row', left: `TABLE ${kot.tableLabel}`, right: kot.roomName, bold: true, size: 'tall' });
   b.push({ t: 'row', left: `KOT #${kot.kotNo}`, right: `Order #${kot.orderNo}` });
-  b.push({ t: 'row', left: dateTime(kot.createdAt), right: `By: ${kot.staffName}` });
+  b.push({ t: 'row', left: dateTime(kot.createdAt), right: kot.staffName ? `By: ${kot.staffName}` : '' });
   b.push({ t: 'divider', char: '=' });
   for (const line of kot.lines) {
     b.push({ t: 'text', text: `${line.qty} x ${line.name}`, bold: true, size: 'tall' });

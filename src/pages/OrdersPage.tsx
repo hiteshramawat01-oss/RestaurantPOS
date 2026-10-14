@@ -83,7 +83,7 @@ function ActiveOrders() {
                 {order.status === 'billing' ? <Tag color="magenta">Bill pending</Tag> : unsent ? <Tag color="gold">{unsent} not sent</Tag> : null}
               </div>
               <div className="rowlist__sub">
-                {order.type === 'takeaway' ? `Takeaway${order.customerName ? ` · ${order.customerName}` : ''}` : r?.name} · {itemCount(items)} items · {order.staffName} · {elapsed(order.createdAt, now)}
+                {order.type === 'takeaway' ? `Takeaway${order.customerName ? ` · ${order.customerName}` : ''}` : r?.name} · {itemCount(items)} items · {elapsed(order.createdAt, now)}
               </div>
             </div>
             <div className="money" style={{ fontWeight: 800 }}>
@@ -142,7 +142,7 @@ function KitchenTickets() {
                     <Tag color={tag.color}>{tag.label}</Tag>
                   </div>
                   <div className="rowlist__sub">
-                    {timeOf(k.createdAt)}{k.roomName ? ` · ${k.roomName}` : ''} · Order #{k.orderNo} · {k.staffName}
+                    {timeOf(k.createdAt)}{k.roomName ? ` · ${k.roomName}` : ''} · Order #{k.orderNo}
                   </div>
                   <div style={{ fontSize: 14, marginTop: 4 }}>{k.lines.map((l) => `${l.qty}× ${l.name}`).join(', ')}</div>
                   {k.lastError && k.printStatus === 'failed' && (

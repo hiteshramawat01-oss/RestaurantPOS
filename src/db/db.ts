@@ -16,7 +16,8 @@ import type {
   Room,
   Staff,
 } from './types';
-import { seedDatabase } from './seed';
+import { seedDatabase, TABLE_LAYOUT } from './seed';
+import { newId } from '../lib/id';
 
 export const DB_NAME = 'restaurant-pos';
 
@@ -49,7 +50,7 @@ export const SCHEMA_V2 = {
   orders: 'id, &orderNo, tableId, status, createdAt, closedAt',
 };
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export class PosDB extends Dexie {
   rooms!: Table<Room, string>;
@@ -91,6 +92,39 @@ export class PosDB extends Dexie {
             if (typeof i.printCount !== 'number') i.printCount = 0;
           });
         await tx.table('meta').put({ key: 'migratedToV2At', value: Date.now() });
+      });
+
+    // v3: the restaurant's real layout. Tables are renumbered in place
+    // (AC 1–5, Non-AC 1–8) so past orders keep pointing at the same tables.
+    // A table beyond the layout is hidden, unless it still has an open order.
+    this.version(3)
+      .stores(SCHEMA_V2)
+      .upgrade(async (tx) => {
+        const rooms = await tx.table('rooms').toArray();
+        const orders: Order[] = await tx.table('orders').toArray();
+        const busy = new Set(orders.filter((o) => o.status === 'open' || o.status === 'billing').map((o) => o.tableId));
+        for (const room of rooms as Room[]) {
+          const count = TABLE_LAYOUT[room.name as keyof typeof TABLE_LAYOUT];
+          if (!count) continue;
+          const existing = ((await tx.table('diningTables').where('roomId').equals(room.id).toArray()) as DiningTable[]).sort(
+            (a, b) => a.sortOrder - b.sortOrder,
+          );
+          for (let i = 0; i < Math.max(count, existing.length); i++) {
+            const t = existing[i];
+            if (i < count) {
+              if (t) await tx.table('diningTables').update(t.id, { label: String(i + 1), sortOrder: i + 1, active: true });
+              else
+                await tx
+                  .table('diningTables')
+                  .add({ id: newId(), roomId: room.id, label: String(i + 1), seats: 4, sortOrder: i + 1, active: true });
+            } else if (t) {
+              await tx.table('diningTables').update(t.id, { sortOrder: 100 + i, active: busy.has(t.id) });
+            }
+          }
+        }
+        await tx.table('settings').toCollection().modify((s: Partial<AppSettings>) => {
+          s.requirePin = false;
+        });
       });
 
     this.on('populate', (tx) => seedDatabase(tx));

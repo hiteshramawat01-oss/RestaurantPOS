@@ -26,9 +26,8 @@ An offline point-of-sale app for a small restaurant: tables, order taking, kitch
 | **Tables** | See AC and Non-AC tables as Free / Occupied / Bill pending, with running total and time since the order started. Tap a table to start or continue its order. Start a **takeaway** (parcel) order with **New takeaway**; takeaway orders have no table, any number can be open, and an optional customer name prints on the slip and bill. |
 | **Orders** | Active orders, and every kitchen ticket with its print status (Printed, Print failed, Confirm print). Retry or reprint here. |
 | **Billing** | Bill-pending tables. Apply a discount (owner), finalize the invoice, print it, and record Cash or UPI payment. |
-| **Sales** | Today's (or any day's) paid sales, cash/UPI split, discounts, tax, unpaid and cancelled bills, invoice history with reprint and refund. |
 | **Menu** | Dishes by category. Anyone can mark a dish sold out; the owner edits names, prices and kitchen instructions. |
-| **Settings** | Printer, restaurant details, rooms and tables, taxes and invoice numbering, staff and PINs, backup/restore, updates, storage. |
+| **Settings** | Printer (find printers on the phone's Wi-Fi, paper width, name on slips, test print) and App update. |
 
 Order flow: **Tap table → tap dishes → Send to kitchen** (KOT prints) → add more later (a separate **ADDED ITEMS** slip prints with only the new dishes) → **Request bill** → **Finalize and print bill** → **Paid by cash / UPI** (table becomes free).
 
@@ -42,7 +41,7 @@ Safety built in:
 - An order closes only after staff confirm payment.
 - No tax is charged until the owner switches on the rates that apply (Settings → Taxes). The app does not decide GST compliance.
 
-Default sign-in: **Owner** (PIN **1234** — change it in Settings → Staff and PINs), plus Waiter 1–3 and Cashier without PINs. Sample tables and menu are included; edit them in Settings and Menu.
+There is no sign-in: the app opens straight to the tables (AC 1–5, Non-AC 1–8).
 
 ---
 

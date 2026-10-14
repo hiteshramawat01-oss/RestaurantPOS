@@ -39,11 +39,20 @@ export function explainPrintError(raw: string, p: PrinterSettings): string {
 }
 
 /** Send blocks to the printer with the configured method. Does not touch the database. */
+/**
+ * The Android app always prints directly over Wi-Fi; a browser can only use
+ * the system print dialog. The stored method is no longer a user choice.
+ */
+export function effectivePrinter(p: PrinterSettings): PrinterSettings {
+  return { ...p, method: nativePrintingAvailable() ? 'native' : 'browser', port: p.port || 9100 };
+}
+
 export async function sendToPrinter(
   pages: Block[][],
-  printer: PrinterSettings,
+  configured: PrinterSettings,
   title: string,
 ): Promise<Exclude<PrintOutcome, { status: 'skipped' }>> {
+  const printer = effectivePrinter(configured);
   const cols = columnsFor(printer.paperWidth);
   if (printer.method === 'native') {
     if (!nativePrintingAvailable())
@@ -52,7 +61,7 @@ export async function sendToPrinter(
         method: 'native',
         error: 'Direct Wi-Fi printing only works in the installed Android app (APK). Switch the printer method in Settings or use the APK.',
       };
-    if (!printer.host) return { status: 'failed', method: 'native', error: 'Printer IP address is not set (Settings → Printer).' };
+    if (!printer.host) return { status: 'failed', method: 'native', error: 'No printer chosen yet. Go to Settings → Printer and tap “Find printers”.' };
     try {
       const bytes = pages.map((p) => encodeEscPos(p, cols));
       const total = new Uint8Array(bytes.reduce((n, b) => n + b.length, 0));
@@ -181,7 +190,20 @@ export async function testPrint(printer: PrinterSettings, restaurantName: string
   return outcome;
 }
 
-export async function checkPrinterStatus(printer: PrinterSettings) {
+export interface FoundPrinter {
+  host: string;
+  port: number;
+}
+
+/** Search the phone's Wi-Fi network for printers (Android app only). */
+export async function findPrinters(port = 9100): Promise<{ network: string; printers: FoundPrinter[] }> {
+  if (!nativePrintingAvailable()) throw new Error('Searching for printers works in the Android app only.');
+  const r = await EscPosPrinter.scan({ port, timeoutMs: 500 });
+  return { network: r.network, printers: r.printers };
+}
+
+export async function checkPrinterStatus(configured: PrinterSettings) {
+  const printer = effectivePrinter(configured);
   if (printer.method !== 'native' || !nativePrintingAvailable())
     return { supported: false as const, message: 'Live printer status is only available with direct Wi-Fi printing in the Android app.' };
   if (!printer.host) return { supported: true as const, reachable: false, message: 'Printer IP address is not set.' };

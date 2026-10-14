@@ -1,5 +1,5 @@
-import { PlusOutlined, ShoppingOutlined, SwapOutlined } from '@ant-design/icons';
-import { App, Button, Segmented, Spin } from 'antd';
+import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { App, Spin } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,18 +9,10 @@ import { formatPrice } from '../domain/money';
 import { orderTotal } from '../domain/totals';
 import { useActiveOrders, useRooms, useTables, type ActiveOrderInfo } from '../hooks/data';
 import { elapsed, useNow } from '../lib/time';
-import { useActor, useSession } from '../session';
+import { useActor } from '../session';
 import { openTakeawayOrder } from '../services/orders';
 
 type TileState = 'free' | 'busy' | 'bill';
-
-function readFilter(): string {
-  try {
-    return localStorage.getItem('pos.roomFilter') ?? 'all';
-  } catch {
-    return 'all';
-  }
-}
 
 export default function TablesPage() {
   const rooms = useRooms();
@@ -28,8 +20,6 @@ export default function TablesPage() {
   const active = useActiveOrders();
   const navigate = useNavigate();
   const now = useNow();
-  const { staff, signOut } = useSession();
-  const [filter, setFilter] = useState(readFilter);
   const actor = useActor();
   const { message } = App.useApp();
   const [starting, setStarting] = useState(false);
@@ -69,14 +59,11 @@ export default function TablesPage() {
     if (!a) return 'free';
     return a.order.status === 'billing' ? 'bill' : 'busy';
   };
-  const counts = { free: 0, busy: 0, bill: 0 };
-  tables.forEach((t) => counts[stateOf(t)]++);
-
-  const shownRooms = rooms.filter((r) => filter === 'all' || r.id === filter);
+  const shownRooms = rooms;
   const takeaways = active
     .filter((a) => a.order.type === 'takeaway' && a.items.length > 0)
     .sort((x, y) => x.order.createdAt - y.order.createdAt);
-  const showTakeaway = filter === 'all' || filter === 'takeaway';
+  const showTakeaway = true;
 
   const open = (t: DiningTable) => {
     const a = byTable.get(t.id);
@@ -87,48 +74,7 @@ export default function TablesPage() {
   return (
     <div className="page">
       <div className="page__head">
-        <div>
-          <h1 className="page__title">Tables</h1>
-          <div className="page__sub">
-            Signed in as <strong>{staff?.name}</strong>
-          </div>
-        </div>
-        <div className="page__actions">
-          <Button icon={<SwapOutlined />} onClick={signOut}>
-            Switch user
-          </Button>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
-        <Segmented
-          size="large"
-          value={filter}
-          onChange={(v) => {
-            setFilter(String(v));
-            try {
-              localStorage.setItem('pos.roomFilter', String(v));
-            } catch {
-              /* ignore */
-            }
-          }}
-          options={[
-            { label: 'All', value: 'all' },
-            ...rooms.map((r) => ({ label: r.name, value: r.id })),
-            { label: takeaways.length ? `Takeaway (${takeaways.length})` : 'Takeaway', value: 'takeaway' },
-          ]}
-        />
-        <div className="tally" aria-label="Table summary">
-          <span className="tally__chip">
-            <i style={{ background: 'var(--free)' }} /> {counts.free} free
-          </span>
-          <span className="tally__chip">
-            <i style={{ background: 'var(--busy-band)' }} /> {counts.busy} occupied
-          </span>
-          <span className="tally__chip">
-            <i style={{ background: 'var(--bill-band)' }} /> {counts.bill} bill pending
-          </span>
-        </div>
+        <h1 className="page__title">Tables</h1>
       </div>
 
       {showTakeaway && (
@@ -157,7 +103,7 @@ export default function TablesPage() {
                     <ShoppingOutlined style={{ fontSize: 20, marginRight: 4 }} />#{order.orderNo}
                   </span>
                   <span className="ttile__seats" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {order.customerName ?? 'No name'}
+                    {order.customerName ?? 'Parcel'}
                   </span>
                   {printFailed ? <span className="ttile__flag">Print failed</span> : unsent > 0 ? <span className="ttile__flag" style={{ background: 'var(--busy)' }}>Not sent</span> : null}
                   <span className="ttile__state">{bill ? 'Bill pending' : 'Preparing'}</span>
@@ -179,13 +125,13 @@ export default function TablesPage() {
             <div className="room__head">
               <h2 className="room__name">{room.name}</h2>
               <span className="muted">
-                {roomTables.length} tables · {roomTables.reduce((s, t) => s + t.seats, 0)} seats
+                {roomTables.filter((t) => stateOf(t) === 'free').length} of {roomTables.length} free
               </span>
             </div>
             {roomTables.length === 0 ? (
               <div className="empty panel">
                 <div className="empty__title">No tables in {room.name}</div>
-                Add tables in Settings → Rooms and tables.
+                No tables are set up here.
               </div>
             ) : (
               <div className="table-grid">
@@ -203,7 +149,6 @@ export default function TablesPage() {
                       aria-label={`Table ${t.label}, ${st === 'free' ? 'free' : st === 'busy' ? 'occupied' : 'bill pending'}`}
                     >
                       <span className="ttile__label">{t.label}</span>
-                      <span className="ttile__seats">{t.seats} seats</span>
                       {printFailed ? <span className="ttile__flag">Print failed</span> : unsent > 0 ? <span className="ttile__flag" style={{ background: 'var(--busy)' }}>Not sent</span> : null}
                       {st === 'free' ? (
                         <span className="ttile__state">Free</span>

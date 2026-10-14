@@ -4,16 +4,13 @@ import { useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { db, requestPersistentStorage } from './db/db';
 import { recoverInterruptedPrints } from './printing/printService';
-import { SessionProvider, useSession } from './session';
 import { theme } from './theme';
 import AppLayout from './components/AppLayout';
-import SignIn from './pages/SignIn';
 import TablesPage from './pages/TablesPage';
 import OrderPage from './pages/OrderPage';
 import OrdersPage from './pages/OrdersPage';
 import BillingListPage from './pages/BillingListPage';
 import BillingPage from './pages/BillingPage';
-import SalesPage from './pages/SalesPage';
 import MenuPage from './pages/MenuPage';
 import SettingsPage from './pages/SettingsPage';
 import StorageError from './pages/StorageError';
@@ -48,9 +45,6 @@ function useBoot(): BootState {
 }
 
 function Routed() {
-  const { staff, loading } = useSession();
-  if (loading) return <FullSpin />;
-  if (!staff) return <SignIn />;
   return (
     <Routes>
       <Route element={<AppLayout />}>
@@ -61,7 +55,6 @@ function Routed() {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/billing" element={<BillingListPage />} />
         <Route path="/billing/:orderId" element={<BillingPage />} />
-        <Route path="/sales" element={<SalesPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/tables" replace />} />
@@ -88,11 +81,9 @@ export default function AppRoot() {
         {/* Registered before sign-in so the app is cached for offline use on first visit. */}
         {boot.phase !== 'loading' && !isNativeApp() && <PwaUpdater />}
         {boot.phase === 'ready' && (
-          <SessionProvider>
-            <HashRouter>
-              <Routed />
-            </HashRouter>
-          </SessionProvider>
+          <HashRouter>
+            <Routed />
+          </HashRouter>
         )}
       </AntApp>
     </ConfigProvider>

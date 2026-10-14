@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Simpler app: no sign-in or staff users, and no Sales screen.
+- Settings now has only Printer and App update.
+- Find printers: searches the phone's Wi-Fi for network printers; tap one to use it.
+- Tables set to AC 1–5 and Non-AC 1–8.
+- This version changes the Android app itself, so it is installed once from the APK.
+
 ## 1.2.0
 
 - The Android app now updates itself: new versions download in the background and install the next time the app is closed (or tap "Restart now").

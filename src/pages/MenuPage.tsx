@@ -149,7 +149,7 @@ export default function MenuPage() {
         <div>
           <h1 className="page__title">Menu</h1>
           <div className="page__sub">
-            {isOwner ? 'Edit dishes and prices. Anyone can mark a dish sold out.' : 'Mark dishes sold out. Only the owner can edit dishes and prices.'}
+            Switch a dish off when it runs out.
           </div>
         </div>
         {isOwner && (

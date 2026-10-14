@@ -1,6 +1,5 @@
 import {
   AppstoreOutlined,
-  BarChartOutlined,
   FileTextOutlined,
   ProfileOutlined,
   SettingOutlined,
@@ -16,7 +15,6 @@ const NAV = [
   { to: '/tables', label: 'Tables', icon: <AppstoreOutlined /> },
   { to: '/orders', label: 'Orders', icon: <ProfileOutlined />, badge: 'print' as const },
   { to: '/billing', label: 'Billing', icon: <WalletOutlined />, badge: 'bill' as const },
-  { to: '/sales', label: 'Sales', icon: <BarChartOutlined /> },
   { to: '/menu', label: 'Menu', icon: <FileTextOutlined /> },
   { to: '/settings', label: 'Settings', icon: <SettingOutlined /> },
 ];

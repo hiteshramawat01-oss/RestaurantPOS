@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
-import { CURRENT_SCHEMA_VERSION, PosDB, SCHEMA_V1 } from './db';
+import { CURRENT_SCHEMA_VERSION, PosDB, SCHEMA_V1, SCHEMA_V2 } from './db';
 
 describe('database', () => {
   it('seeds a fresh database with rooms, tables, menu, staff and settings', async () => {
@@ -50,5 +50,47 @@ describe('database', () => {
     expect(await v2.meta.get('migratedToV2At')).toBeDefined();
     v2.close();
     await v2.delete();
+  });
+
+  it('seeds the restaurant layout: AC tables 1–5 and Non-AC tables 1–8', async () => {
+    const d = new PosDB('layout-test');
+    await d.open();
+    const rooms = await d.rooms.toArray();
+    const labels = async (name: string) =>
+      (await d.diningTables.where('roomId').equals(rooms.find((r) => r.name === name)!.id).sortBy('sortOrder')).map((t) => t.label);
+    expect(await labels('AC')).toEqual(['1', '2', '3', '4', '5']);
+    expect(await labels('Non-AC')).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
+    d.close();
+    await d.delete();
+  });
+
+  it('upgrading an installed app renumbers its tables and keeps orders on them', async () => {
+    const name = 'v3-migration-test';
+    const v2 = new Dexie(name);
+    v2.version(1).stores(SCHEMA_V1);
+    v2.version(2).stores(SCHEMA_V2);
+    await v2.open();
+    await v2.table('rooms').bulkAdd([
+      { id: 'ac', name: 'AC', sortOrder: 1, active: true },
+      { id: 'non', name: 'Non-AC', sortOrder: 2, active: true },
+    ]);
+    for (let i = 1; i <= 6; i++)
+      await v2.table('diningTables').add({ id: `a${i}`, roomId: 'ac', label: `A${i}`, seats: 4, sortOrder: i, active: true });
+    for (let i = 1; i <= 8; i++)
+      await v2.table('diningTables').add({ id: `n${i}`, roomId: 'non', label: `N${i}`, seats: 4, sortOrder: i, active: true });
+    await v2.table('orders').add({ id: 'o1', orderNo: 1, tableId: 'a3', roomId: 'ac', status: 'open', createdAt: 1 });
+    await v2.table('settings').add({ key: 'app', requirePin: true });
+    v2.close();
+
+    const d = new PosDB(name);
+    await d.open();
+    expect(d.verno).toBe(3);
+    expect((await d.diningTables.get('a3'))?.label).toBe('3');
+    expect((await d.diningTables.get('a6'))?.active).toBe(false); // AC has 5 tables now
+    expect((await d.diningTables.get('n8'))?.label).toBe('8');
+    expect((await d.orders.get('o1'))?.tableId).toBe('a3');
+    expect((await d.diningTables.filter((t) => t.active).count())).toBe(13);
+    d.close();
+    await d.delete();
   });
 });

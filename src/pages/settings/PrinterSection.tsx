@@ -1,161 +1,215 @@
-import { Alert, App, Button, Input, InputNumber, Radio, Switch } from 'antd';
+import { CheckCircleFilled, PrinterOutlined, SearchOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Input, Segmented } from 'antd';
 import { useState } from 'react';
 import { db } from '../../db/db';
-import type { AppSettings, PrinterSettings } from '../../db/types';
+import type { AppSettings, PaperWidth, PrinterSettings } from '../../db/types';
 import { nativePrintingAvailable } from '../../printing/nativePrinter';
-import { checkPrinterStatus, testPrint } from '../../printing/printService';
+import { checkPrinterStatus, findPrinters, testPrint, type FoundPrinter } from '../../printing/printService';
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
-export default function PrinterSection({ settings, editable }: { settings: AppSettings; editable: boolean }) {
-  const { message, modal } = App.useApp();
-  const [p, setP] = useState<PrinterSettings>(settings.printer);
-  const [busy, setBusy] = useState<'test' | 'status' | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+/**
+ * Printer settings, kept to the essentials: find the printer on the phone's
+ * Wi-Fi and tap it, choose the paper width, print a test page. Everything
+ * saves as soon as it changes.
+ */
+export default function PrinterSection({ settings }: { settings: AppSettings }) {
+  const { message } = App.useApp();
   const native = nativePrintingAvailable();
-  const dirty = JSON.stringify(p) !== JSON.stringify(settings.printer);
-  const ipInvalid = p.method === 'native' && p.host !== '' && !IPV4.test(p.host);
+  const printer = settings.printer;
 
-  const save = async () => {
-    if (ipInvalid) {
-      message.error('Enter the printer IP address like 192.168.1.50');
-      return;
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<FoundPrinter[] | null>(null);
+  const [network, setNetwork] = useState('');
+  const [searchError, setSearchError] = useState('');
+  const [manual, setManual] = useState(false);
+  const [ip, setIp] = useState(printer.host);
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [name, setName] = useState(settings.restaurant.name);
+
+  const save = (patch: Partial<PrinterSettings>) =>
+    db.settings.update('app', { printer: { ...printer, ...patch, method: native ? 'native' : 'browser' } });
+
+  const search = async () => {
+    setSearching(true);
+    setSearchError('');
+    setStatus(null);
+    try {
+      const r = await findPrinters(printer.port || 9100);
+      setFound(r.printers);
+      setNetwork(r.network);
+      // Only one printer on the network: choose it straight away.
+      if (r.printers.length === 1 && r.printers[0].host !== printer.host) {
+        await save({ host: r.printers[0].host, port: r.printers[0].port });
+        message.success(`Printer ${r.printers[0].host} selected`);
+      }
+    } catch (e) {
+      setFound(null);
+      setSearchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSearching(false);
     }
-    await db.settings.update('app', { printer: { ...p, host: p.host.trim(), port: p.port || 9100 } });
-    message.success('Printer settings saved');
+  };
+
+  const choose = async (p: FoundPrinter) => {
+    await save({ host: p.host, port: p.port });
+    setStatus(null);
+    message.success(`Printer ${p.host} selected`);
   };
 
   const runTest = async () => {
-    setBusy('test');
+    setTesting(true);
     try {
-      const out = await testPrint(p, settings.restaurant.name);
-      if (out.status === 'printed') message.success('Test page sent to the printer. Check that it came out.');
-      else if (out.status === 'awaiting_confirmation')
-        modal.info({ title: 'Did the test page print?', content: 'If it did not, check the Android print service setup described below.', centered: true });
-      else modal.error({ title: 'Test print failed', content: out.error, centered: true });
+      const out = await testPrint(settings.printer, settings.restaurant.name);
+      if (out.status === 'printed') setStatus({ ok: true, text: 'Test page sent. Check that it came out of the printer.' });
+      else if (out.status === 'awaiting_confirmation') setStatus({ ok: true, text: 'Print dialog opened. Choose your printer there.' });
+      else setStatus({ ok: false, text: out.error });
     } finally {
-      setBusy(null);
+      setTesting(false);
     }
   };
 
-  const runStatus = async () => {
-    setBusy('status');
-    try {
-      const s = await checkPrinterStatus(p);
-      setStatus(s.message);
-    } finally {
-      setBusy(null);
-    }
+  const check = async () => {
+    const s = await checkPrinterStatus(settings.printer);
+    setStatus({ ok: 'reachable' in s ? !!s.reachable && !(s.problems?.length) : false, text: s.message });
   };
 
   return (
-    <div>
-      <Alert
-        type={native ? 'success' : 'warning'}
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={native ? 'Running as the Android app: direct Wi-Fi printing is available.' : 'Running in a browser: printing goes through the Android print dialog.'}
-        description={
-          native
-            ? 'Slips go straight to the printer over Wi-Fi (ESC/POS, usually port 9100). No print dialog.'
-            : 'Browsers are not allowed to talk to network printers directly. Each slip opens the print dialog and staff confirm it printed. For one-tap printing, install the Android app (APK).'
-        }
-      />
-
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>How to print</div>
-        <Radio.Group
-          disabled={!editable}
-          value={p.method}
-          onChange={(e) => setP({ ...p, method: e.target.value })}
-          optionType="button"
-          buttonStyle="solid"
-          size="large"
-          options={[
-            { value: 'native', label: 'Direct Wi-Fi (Android app)' },
-            { value: 'browser', label: 'Print dialog' },
-          ]}
+    <div className="psettings">
+      {!native && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Open the installed Android app to connect to the Wi-Fi printer."
+          description="In a web browser, slips print through the phone's print dialog."
         />
-      </div>
-
-      {p.method === 'native' && (
-        <div className="form-grid">
-          <label>
-            Printer IP address
-            <Input
-              size="large"
-              disabled={!editable}
-              value={p.host}
-              onChange={(e) => setP({ ...p, host: e.target.value.trim() })}
-              placeholder="192.168.1.50"
-              inputMode="decimal"
-              status={ipInvalid ? 'error' : undefined}
-            />
-          </label>
-          <label>
-            Port
-            <InputNumber size="large" disabled={!editable} min={1} max={65535} value={p.port} onChange={(v) => setP({ ...p, port: v ?? 9100 })} style={{ width: '100%' }} />
-          </label>
-        </div>
       )}
 
-      <div style={{ margin: '16px 0' }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Paper width</div>
-        <Radio.Group
-          disabled={!editable}
-          value={p.paperWidth}
-          onChange={(e) => setP({ ...p, paperWidth: e.target.value })}
-          optionType="button"
+      {native && (
+        <>
+          <div className="psettings__current">
+            <PrinterOutlined className="psettings__icon" />
+            <div className="psettings__what">
+              <div className="psettings__label">Selected printer</div>
+              <div className="psettings__value">{printer.host || 'Not chosen yet'}</div>
+            </div>
+            {printer.host && <Button onClick={check}>Check</Button>}
+          </div>
+
+          <Button
+            type="primary"
+            size="large"
+            block
+            icon={<SearchOutlined />}
+            loading={searching}
+            onClick={search}
+            style={{ marginTop: 12 }}
+          >
+            {searching ? 'Searching the Wi-Fi…' : 'Find printers'}
+          </Button>
+          <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+            The phone and the printer must be on the same Wi-Fi. Searching takes a few seconds.
+          </div>
+
+          {searchError && <Alert style={{ marginTop: 12 }} type="error" showIcon message={searchError} />}
+
+          {found && (
+            <div className="rowlist" style={{ marginTop: 12 }}>
+              {found.length === 0 ? (
+                <div className="rowlist__row">
+                  <div className="rowlist__main">
+                    <div className="rowlist__title">No printer found on {network}</div>
+                    <div className="rowlist__sub">
+                      Check the printer is on and joined to this Wi-Fi, then search again, or enter its IP address below.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                found.map((p) => {
+                  const selected = p.host === printer.host;
+                  return (
+                    <button key={p.host} className="rowlist__row is-button" onClick={() => choose(p)} aria-pressed={selected}>
+                      <PrinterOutlined style={{ fontSize: 20 }} />
+                      <div className="rowlist__main">
+                        <div className="rowlist__title">{p.host}</div>
+                        <div className="rowlist__sub">Network printer · port {p.port}</div>
+                      </div>
+                      {selected ? (
+                        <CheckCircleFilled style={{ fontSize: 22, color: 'var(--free)' }} aria-label="Selected" />
+                      ) : (
+                        <span style={{ color: 'var(--indigo)', fontWeight: 700 }}>Use</span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {!manual ? (
+            <Button type="link" style={{ paddingLeft: 0, marginTop: 4 }} onClick={() => setManual(true)}>
+              Enter IP address yourself
+            </Button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Input
+                size="large"
+                value={ip}
+                onChange={(e) => setIp(e.target.value.trim())}
+                placeholder="192.168.1.50"
+                inputMode="decimal"
+                status={ip && !IPV4.test(ip) ? 'error' : undefined}
+              />
+              <Button
+                size="large"
+                disabled={!IPV4.test(ip)}
+                onClick={async () => {
+                  await save({ host: ip });
+                  setManual(false);
+                  message.success(`Printer ${ip} selected`);
+                }}
+              >
+                Use
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="psettings__field">
+        <div className="psettings__label">Paper width</div>
+        <Segmented
           size="large"
+          value={printer.paperWidth}
+          onChange={(v) => save({ paperWidth: v as PaperWidth })}
           options={[
-            { value: 80, label: '80 mm' },
-            { value: 58, label: '58 mm' },
+            { label: '80 mm', value: 80 },
+            { label: '58 mm', value: 58 },
           ]}
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <Switch disabled={!editable} checked={p.autoPrintKot} onChange={(v) => setP({ ...p, autoPrintKot: v })} />
-        Print the kitchen slip automatically when an order is sent
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        Kitchen slip copies
-        <InputNumber disabled={!editable} min={1} max={3} value={p.copiesKot} onChange={(v) => setP({ ...p, copiesKot: v ?? 1 })} />
+      <div className="psettings__field">
+        <div className="psettings__label">Name at the top of slips and bills</div>
+        <Input
+          size="large"
+          value={name}
+          maxLength={32}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => {
+            const n = name.trim() || 'Restaurant';
+            setName(n);
+            if (n !== settings.restaurant.name) void db.settings.update('app', { restaurant: { ...settings.restaurant, name: n } });
+          }}
+        />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {editable && (
-          <Button type="primary" size="large" disabled={!dirty} onClick={save}>
-            Save printer settings
-          </Button>
-        )}
-        <Button size="large" loading={busy === 'test'} onClick={runTest}>
-          Print test page
-        </Button>
-        {p.method === 'native' && (
-          <Button size="large" loading={busy === 'status'} onClick={runStatus}>
-            Check printer
-          </Button>
-        )}
-      </div>
-      {status && <Alert style={{ marginTop: 12 }} type="info" showIcon message={status} />}
-      {!editable && <p className="muted" style={{ marginTop: 12 }}>Only the owner can change printer settings.</p>}
-
-      <details style={{ marginTop: 20 }}>
-        <summary style={{ fontWeight: 700, cursor: 'pointer', padding: '8px 0' }}>Printer setup guide</summary>
-        <ol style={{ paddingLeft: 20, lineHeight: 1.6 }}>
-          <li>Use an 80 mm (or 58 mm) thermal receipt printer with Wi-Fi or LAN that supports ESC/POS and “raw” printing on port 9100.</li>
-          <li>Connect the printer to the restaurant Wi-Fi using its own setup tool. Hold the feed button while switching it on to print its settings page with the IP address.</li>
-          <li>In the Wi-Fi router, reserve that IP address for the printer (DHCP reservation) so it does not change.</li>
-          <li>
-            <strong>Android app (recommended):</strong> choose “Direct Wi-Fi”, enter the IP and port 9100, save, then tap “Print test page”.
-          </li>
-          <li>
-            <strong>Browser / installed web app:</strong> install the printer maker’s Android print-service plugin (or a print-service app that supports ESC/POS network printers), enable it in Android Settings → Connected devices → Printing, then choose “Print dialog” here and run a test print. Select the thermal printer and the matching paper size in the dialog.
-          </li>
-          <li>The phone and the printer must be on the same Wi-Fi. The internet is not needed for printing.</li>
-        </ol>
-      </details>
+      <Button size="large" block icon={<PrinterOutlined />} loading={testing} onClick={runTest} disabled={native && !printer.host} style={{ marginTop: 20 }}>
+        Print test page
+      </Button>
+      {status && <Alert style={{ marginTop: 12 }} type={status.ok ? 'success' : 'warning'} showIcon message={status.text} />}
     </div>
   );
 }
