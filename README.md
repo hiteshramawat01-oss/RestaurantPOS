@@ -21,8 +21,13 @@ An offline point-of-sale app for a small restaurant: tables, order taking, kitch
 
 ## What it does
 
-| Section | What staff do there |
-| --- | --- |
+- **Home:** every order in progress as a card (table or takeaway, Preparing or Payment pending, items and total, whether the kitchen slip is printed), plus a big **New order** button.
+- **New order:** Where (AC 1–5, Non-AC 1–8, or takeaway with an optional name) → Dishes (search, sections, Half/Full) → Review (quantities, kitchen notes) → placed, with an optional **Print kitchen slip**.
+- **Tap an order:** print the kitchen slip, add items, mark **Food delivered**, remove an item, cancel, or **Collect payment** (optional discount, Cash or UPI, optional printed bill). Paid orders leave the home screen.
+- **App menu:** Dishes and prices (edit, Half/Full, switch off when sold out) and Printer and updates.
+- Nothing prints automatically. Each kitchen slip is printed when someone taps Print, and reprints say “REPRINT – NOT A NEW ORDER”.
+
+--- | --- |
 | **Tables** | See AC and Non-AC tables as Free / Occupied / Bill pending, with running total and time since the order started. Tap a table to start or continue its order. Start a **takeaway** (parcel) order with **New takeaway**; takeaway orders have no table, any number can be open, and an optional customer name prints on the slip and bill. |
 | **Orders** | Active orders, and every kitchen ticket with its print status (Printed, Print failed, Confirm print). Retry or reprint here. |
 | **Billing** | Bill-pending tables. Apply a discount (owner), finalize the invoice, print it, and record Cash or UPI payment. |

@@ -69,7 +69,7 @@ export default defineConfig({
         short_name: 'POS',
         description: 'Offline order taking, kitchen slips and billing for the restaurant.',
         lang: 'en-IN',
-        theme_color: '#26336b',
+        theme_color: '#c2410c',
         background_color: '#f3f4f7',
         display: 'standalone',
         orientation: 'any',

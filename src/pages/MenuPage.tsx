@@ -1,4 +1,4 @@
-import { ArrowDownOutlined, ArrowUpOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { App, Button, Form, Input, InputNumber, Modal, Radio, Select, Spin, Switch, Tag } from 'antd';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import type { Category, MenuItem } from '../db/types';
 import { formatPrice, paiseToRupees, rupeesToPaise } from '../domain/money';
 import { newId } from '../lib/id';
 import { useSession } from '../session';
+import { TopBar } from '../components/AppMenu';
 
 interface ItemForm {
   name: string;
@@ -114,80 +115,35 @@ export default function MenuPage() {
     setCatEditing(null);
   };
 
-  const moveCategory = async (dir: -1 | 1) => {
-    if (!currentCat) return;
-    const idx = categories.findIndex((c) => c.id === currentCat.id);
-    const other = categories[idx + dir];
-    if (!other) return;
-    await db.transaction('rw', db.categories, async () => {
-      await db.categories.update(currentCat.id, { sortOrder: other.sortOrder });
-      await db.categories.update(other.id, { sortOrder: currentCat.sortOrder });
-    });
-  };
-
-  const moveItem = async (it: MenuItem, dir: -1 | 1) => {
-    const idx = activeItems.findIndex((x) => x.id === it.id);
-    const other = activeItems[idx + dir];
-    if (!other) return;
-    await db.transaction('rw', db.menuItems, async () => {
-      await db.menuItems.update(it.id, { sortOrder: other.sortOrder });
-      await db.menuItems.update(other.id, { sortOrder: it.sortOrder });
-    });
-  };
-
   const row = (it: MenuItem) => (
-    <div className="rowlist__row" key={it.id}>
-      <div className="rowlist__main">
-        <div className="rowlist__title">
-          {it.veg !== undefined && <i className={`veg-dot${it.veg ? '' : ' is-nonveg'}`} />}
-          {it.name}
-        </div>
-        <div className="rowlist__sub">
+    <div className="mrow" key={it.id}>
+      <button className="mrow__main" onClick={() => openItem(it)} aria-label={`Edit ${it.name}`}>
+        <span className="mrow__name">{it.name}</span>
+        <span className="mrow__price">
           {it.variants?.length ? it.variants.map((x) => `${x.label} ${formatPrice(x.price)}`).join(' · ') : formatPrice(it.price)}
-          {it.prepNote && ` · Kitchen: ${it.prepNote}`}
-        </div>
-      </div>
+        </span>
+      </button>
       {it.active ? (
-        <>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <Switch
-              checked={it.available}
-              onChange={(v) => db.menuItems.update(it.id, { available: v })}
-              aria-label={`${it.name} available`}
-            />
-            <span style={{ width: 70 }}>{it.available ? 'Available' : 'Sold out'}</span>
-          </span>
-          {isOwner && (
-            <>
-              <Button icon={<ArrowUpOutlined />} aria-label="Move up" onClick={() => moveItem(it, -1)} />
-              <Button icon={<ArrowDownOutlined />} aria-label="Move down" onClick={() => moveItem(it, 1)} />
-              <Button icon={<EditOutlined />} aria-label={`Edit ${it.name}`} onClick={() => openItem(it)} />
-            </>
-          )}
-        </>
+        <Switch checked={it.available} onChange={(v) => db.menuItems.update(it.id, { available: v })} aria-label={`${it.name} available`} />
       ) : (
-        isOwner && <Button onClick={() => db.menuItems.update(it.id, { active: true })}>Show on menu</Button>
+        <Button onClick={() => db.menuItems.update(it.id, { active: true })}>Show</Button>
       )}
     </div>
   );
 
   return (
     <div className="page">
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Menu</h1>
-          <div className="page__sub">
-            Switch a dish off when it runs out.
-          </div>
-        </div>
-        {isOwner && (
-          <div className="page__actions">
-            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => openItem('new')} disabled={!categories.length}>
-              Add dish
-            </Button>
-          </div>
-        )}
-      </div>
+      <TopBar
+        title="Dishes and prices"
+        right={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openItem('new')} disabled={!categories.length}>
+            Add dish
+          </Button>
+        }
+      />
+      <p className="muted" style={{ margin: '0 0 8px' }}>
+        Tap a dish to change its name or price. Switch it off when it runs out.
+      </p>
 
       <div className="cats" role="tablist">
         {categories.map((c) => (
@@ -210,36 +166,31 @@ export default function MenuPage() {
       </div>
 
       {currentCat && isOwner && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
           <Button
-            icon={<EditOutlined />}
+            type="link"
             onClick={() => {
               setCatEditing(currentCat);
               setCatName(currentCat.name);
             }}
           >
-            Rename
-          </Button>
-          <Button icon={<ArrowUpOutlined />} onClick={() => moveCategory(-1)}>
-            Earlier
-          </Button>
-          <Button icon={<ArrowDownOutlined />} onClick={() => moveCategory(1)}>
-            Later
+            Rename “{currentCat.name}”
           </Button>
           <Button
+            type="link"
             onClick={() =>
               currentCat.active
                 ? modal.confirm({
-                    title: `Hide “${currentCat.name}” from the order screen?`,
+                    title: `Hide “${currentCat.name}” from ordering?`,
                     content: 'Dishes stay saved and can be shown again later.',
-                    okText: 'Hide category',
+                    okText: 'Hide',
                     centered: true,
                     onOk: () => db.categories.update(currentCat.id, { active: false }),
                   })
                 : db.categories.update(currentCat.id, { active: true })
             }
           >
-            {currentCat.active ? 'Hide category' : 'Show category'}
+            {currentCat.active ? 'Hide this section' : 'Show this section'}
           </Button>
         </div>
       )}
@@ -250,7 +201,7 @@ export default function MenuPage() {
           {isOwner ? 'Use “Add dish” to create one.' : 'Ask the owner to add dishes.'}
         </div>
       ) : (
-        <div className="rowlist">{activeItems.map(row)}</div>
+        <div className="mlist">{activeItems.map(row)}</div>
       )}
 
       {hidden.length > 0 && (
@@ -258,7 +209,7 @@ export default function MenuPage() {
           <h2 className="panel__title" style={{ marginTop: 24 }}>
             Hidden from the menu <Tag>{hidden.length}</Tag>
           </h2>
-          <div className="rowlist">{hidden.map(row)}</div>
+          <div className="mlist">{hidden.map(row)}</div>
         </>
       )}
 

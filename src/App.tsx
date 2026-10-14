@@ -6,13 +6,10 @@ import { db, requestPersistentStorage } from './db/db';
 import { recoverInterruptedPrints } from './printing/printService';
 import { theme } from './theme';
 import AppLayout from './components/AppLayout';
-import TablesPage from './pages/TablesPage';
-import OrderPage from './pages/OrderPage';
-import KitchenPage from './pages/KitchenPage';
-import KitchenTicketPage from './pages/KitchenTicketPage';
-import BillingListPage from './pages/BillingListPage';
-import BillingPage from './pages/BillingPage';
 import MenuPage from './pages/MenuPage';
+import HomePage from './pages/HomePage';
+import NewOrderPage from './pages/NewOrderPage';
+import PayPage from './pages/PayPage';
 import SettingsPage from './pages/SettingsPage';
 import StorageError from './pages/StorageError';
 import PwaUpdater from './updates/PwaUpdater';
@@ -49,18 +46,13 @@ function Routed() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/kitchen" replace />} />
-        <Route path="/tables" element={<TablesPage />} />
-        <Route path="/order/:tableId" element={<OrderPage />} />
-        <Route path="/takeaway/:orderId" element={<OrderPage />} />
-        <Route path="/kitchen" element={<KitchenPage />} />
-        <Route path="/kitchen/:kotId" element={<KitchenTicketPage />} />
-        <Route path="/orders" element={<Navigate to="/kitchen" replace />} />
-        <Route path="/billing" element={<BillingListPage />} />
-        <Route path="/billing/:orderId" element={<BillingPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/new" element={<NewOrderPage />} />
+        <Route path="/order/:orderId/add" element={<NewOrderPage />} />
+        <Route path="/pay/:orderId" element={<PayPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/kitchen" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

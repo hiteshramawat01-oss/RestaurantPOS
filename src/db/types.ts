@@ -68,6 +68,7 @@ export interface Order {
   roomId: ID; // '' for takeaway
   customerName?: string; // takeaway only, optional
   status: OrderStatus;
+  servedAt?: number; // food delivered to the guests; cleared when new items are sent
   staffId: ID;
   staffName: string;
   guests?: number;

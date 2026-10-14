@@ -2,8 +2,8 @@ import type { ThemeConfig } from 'antd';
 
 export const theme: ThemeConfig = {
   token: {
-    colorPrimary: '#26336b',
-    colorInfo: '#26336b',
+    colorPrimary: '#c2410c',
+    colorInfo: '#c2410c',
     colorSuccess: '#1f7a4d',
     colorWarning: '#b7791f',
     colorError: '#b42318',
@@ -22,7 +22,7 @@ export const theme: ThemeConfig = {
   components: {
     Button: { fontWeight: 600, primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none' },
     Modal: { titleFontSize: 19 },
-    Segmented: { itemSelectedBg: '#26336b', itemSelectedColor: '#ffffff', trackPadding: 4 },
+    Segmented: { itemSelectedBg: '#c2410c', itemSelectedColor: '#ffffff', trackPadding: 4 },
     Switch: { handleSize: 22, trackHeight: 26, trackMinWidth: 48 },
   },
 };

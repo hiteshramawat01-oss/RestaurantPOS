@@ -39,3 +39,18 @@ export function useActiveOrders(): ActiveOrderInfo[] | undefined {
 export function useStaffList() {
   return useLiveQuery(() => db.staff.toArray(), []);
 }
+
+/** Orders in progress with their lines and kitchen tickets (home screen). */
+export function useOpenOrders() {
+  return useLiveQuery(async () => {
+    const orders = await db.orders.where('status').anyOf('open', 'billing').toArray();
+    const ids = orders.map((o) => o.id);
+    const [items, kots, tables, rooms] = await Promise.all([
+      ids.length ? db.orderItems.where('orderId').anyOf(ids).toArray() : [],
+      ids.length ? db.kots.where('orderId').anyOf(ids).toArray() : [],
+      db.diningTables.toArray(),
+      db.rooms.toArray(),
+    ]);
+    return { orders, items, kots, tables, rooms };
+  }, []);
+}

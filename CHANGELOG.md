@@ -2,9 +2,13 @@
 
 ## 1.4.0
 
-- New home screen: Kitchen. It lists open kitchen tickets, oldest first.
-- Open a ticket to print it (or print again) and set its status: New, Preparing, Ready, Served.
-- Sending an order no longer prints automatically.
+- New, simpler app. The home screen shows every order in progress with its status, and a big New order button.
+- New order is a three-step flow: Where (AC / Non-AC table or takeaway) → Dishes → Review. Then print the kitchen slip if you want.
+- Tap an order to print the kitchen slip, add items, mark the food delivered, or collect payment. Paid orders leave the home screen.
+- Payment: optional discount, then Cash or UPI in one tap. Printing the bill is optional.
+- Nothing prints automatically.
+- App menu (top left) has Dishes and prices, and Printer and updates.
+- Colours follow the Mewari Makkhan Dhaba menu card.
 
 ## 1.3.0
 

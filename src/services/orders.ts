@@ -4,6 +4,13 @@ import { newId } from '../lib/id';
 import { billableItems } from '../domain/totals';
 import { addAudit, nextNumber, PosError, requireOwner, type Actor } from './common';
 
+let lastStamp = 0;
+/** Strictly increasing time stamp, so lines added in the same millisecond keep their order. */
+function stamp(): number {
+  lastStamp = Math.max(Date.now(), lastStamp + 1);
+  return lastStamp;
+}
+
 export const ACTIVE_STATUSES: Order['status'][] = ['open', 'billing'];
 
 export function isActive(order: Order | undefined): order is Order {
@@ -131,7 +138,7 @@ export async function addItem(orderId: string, menuItem: MenuItem, qty = 1, vari
       ...(menuItem.variants?.length ? { variant } : {}),
       unitPrice,
       qty,
-      createdAt: Date.now(),
+      createdAt: stamp(),
     };
     await db.orderItems.add(item);
     await touch(orderId);
@@ -209,7 +216,8 @@ export async function sendToKitchen(orderId: string, actor: Actor): Promise<Kot>
     async () => {
       const order = await requireOpenOrder(orderId);
       const items = await db.orderItems.where('orderId').equals(orderId).toArray();
-      const pending = items.filter((i) => !i.kotId && !i.voided && i.qty > 0);
+      // In the order they were added, so the slip reads like the order was taken.
+      const pending = items.filter((i) => !i.kotId && !i.voided && i.qty > 0).sort((a, b) => a.createdAt - b.createdAt);
       if (pending.length === 0) throw new PosError('NOTHING_TO_SEND', 'There are no new items to send.');
       const previousKots = await db.kots.where('orderId').equals(orderId).count();
       const menu = new Map((await db.menuItems.toArray()).map((m) => [m.id, m]));
@@ -230,7 +238,8 @@ export async function sendToKitchen(orderId: string, actor: Actor): Promise<Kot>
       };
       await db.kots.add(kot);
       for (const i of pending) await db.orderItems.update(i.id, { kotId: kot.id });
-      await touch(orderId);
+      // New food is on its way, so the order is no longer "delivered".
+      await db.orders.update(orderId, { servedAt: undefined, updatedAt: Date.now() });
       return kot;
     },
   );
@@ -361,4 +370,96 @@ export async function setKitchenStatus(kotId: string, status: KitchenStatus): Pr
   if (!KITCHEN_STATUSES.includes(status)) throw new PosError('BAD_STATUS', 'Unknown ticket status.');
   const n = await db.kots.update(kotId, { kitchenStatus: status, statusAt: Date.now() });
   if (!n) throw new PosError('NO_KOT', 'Kitchen ticket not found.');
+}
+
+/* ---------- One-step ordering (New order flow) ---------- */
+
+export interface CartLine {
+  menuItemId: string;
+  variant?: string;
+  qty: number;
+  note?: string;
+}
+
+export type OrderTarget =
+  | { kind: 'table'; tableId: string }
+  | { kind: 'takeaway'; customerName?: string }
+  | { kind: 'existing'; orderId: string };
+
+/**
+ * Place an order (or add items to one) and send it to the kitchen, all in a
+ * single step: either everything is saved and a kitchen ticket is created,
+ * or nothing changes. Nothing is printed here.
+ */
+export async function placeOrder(target: OrderTarget, lines: CartLine[], actor: Actor): Promise<{ order: Order; kot: Kot }> {
+  const wanted = lines.filter((l) => l.qty > 0);
+  if (wanted.length === 0) throw new PosError('EMPTY', 'Add at least one dish.');
+  return db.transaction(
+    'rw',
+    [db.orders, db.orderItems, db.kots, db.counters, db.menuItems, db.diningTables, db.rooms, db.invoices],
+    async () => {
+      let order: Order;
+      if (target.kind === 'table') order = await openOrderForTable(target.tableId, actor);
+      else if (target.kind === 'takeaway') order = await openTakeawayOrder(actor, target.customerName);
+      else {
+        const o = await db.orders.get(target.orderId);
+        if (!isActive(o)) throw new PosError('ORDER_CLOSED', 'This order is already closed.');
+        order = o;
+      }
+      if (order.status === 'billing') {
+        // Adding food after the bill was requested: back to an open order,
+        // unless a bill has already been made.
+        const inv = order.invoiceId ? await db.invoices.get(order.invoiceId) : undefined;
+        if (inv && inv.status !== 'cancelled')
+          throw new PosError('INVOICE_EXISTS', `Bill ${inv.invoiceNo} is already made. Cancel it before adding items.`);
+        await db.orders.update(order.id, { status: 'open', invoiceId: undefined });
+        order = { ...order, status: 'open' };
+      }
+      for (const l of wanted) {
+        const m = await db.menuItems.get(l.menuItemId);
+        if (!m) throw new PosError('NO_DISH', 'A dish in this order was removed from the menu.');
+        const note = l.note?.trim();
+        if (note) {
+          const line = await addSeparateLine(order.id, m, l.qty, l.variant);
+          await db.orderItems.update(line.id, { note: note.slice(0, 120) });
+        } else await addItem(order.id, m, l.qty, l.variant);
+      }
+      const kot = await sendToKitchen(order.id, actor);
+      return { order: (await db.orders.get(order.id))!, kot };
+    },
+  );
+}
+
+/** Like addItem, but always a new line (so a note stays with just these dishes). */
+async function addSeparateLine(orderId: string, m: MenuItem, qty: number, variant?: string): Promise<OrderItem> {
+  const v = m.variants?.find((x) => x.label === variant);
+  if (m.variants?.length && !v) throw new PosError('CHOOSE_SIZE', `Choose a size for ${m.name}.`);
+  if (!m.active || !m.available) throw new PosError('UNAVAILABLE', `${m.name} is not available right now.`);
+  const item: OrderItem = {
+    id: newId(),
+    orderId,
+    menuItemId: m.id,
+    name: v ? `${m.name} (${v.label})` : m.name,
+    ...(v ? { variant: v.label } : {}),
+    unitPrice: v ? v.price : m.price,
+    qty,
+    createdAt: stamp(),
+  };
+  await db.orderItems.add(item);
+  return item;
+}
+
+/** Food has been delivered to the guests; the order now waits for payment. */
+export async function markDelivered(orderId: string): Promise<void> {
+  await db.transaction('rw', db.orders, db.kots, async () => {
+    const order = await db.orders.get(orderId);
+    if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'This order is already closed.');
+    const now = Date.now();
+    await db.orders.update(orderId, { servedAt: now, updatedAt: now });
+    await db.kots.where('orderId').equals(orderId).modify({ kitchenStatus: 'served', statusAt: now });
+  });
+}
+
+export async function markNotDelivered(orderId: string): Promise<void> {
+  await db.orders.update(orderId, { servedAt: undefined, updatedAt: Date.now() });
 }

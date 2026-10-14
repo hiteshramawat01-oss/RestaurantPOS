@@ -1,5 +1,6 @@
 import { Spin } from 'antd';
 import { useSettings } from '../hooks/data';
+import { TopBar } from '../components/AppMenu';
 import PrinterSection from './settings/PrinterSection';
 import UpdatesSection from './settings/UpdatesSection';
 
@@ -8,9 +9,7 @@ export default function SettingsPage() {
   if (!settings) return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   return (
     <div className="page" style={{ maxWidth: 560 }}>
-      <div className="page__head">
-        <h1 className="page__title">Settings</h1>
-      </div>
+      <TopBar title="Printer and updates" />
       <section className="panel">
         <h2 className="panel__title">Printer</h2>
         <PrinterSection settings={settings} />
