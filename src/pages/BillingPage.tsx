@@ -15,7 +15,7 @@ import { invoiceBlocks } from '../printing/receipt';
 import { cancelInvoice, confirmPayment, finalizeInvoice, previewBill } from '../services/billing';
 import { reopenOrder, requestBill } from '../services/orders';
 import { useActor, useSession } from '../session';
-import { PRINT_TAG } from './OrdersPage';
+import { PRINT_TAG } from './kitchenLabels';
 
 export default function BillingPage() {
   const { orderId = '' } = useParams();

@@ -1,7 +1,7 @@
 import {
   AppstoreOutlined,
   FileTextOutlined,
-  ProfileOutlined,
+  FireOutlined,
   SettingOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -12,8 +12,8 @@ import OfflineNotice from './OfflineNotice';
 import LiveUpdateBanner from '../updates/LiveUpdateBanner';
 
 const NAV = [
+  { to: '/kitchen', label: 'Kitchen', icon: <FireOutlined />, badge: 'kitchen' as const },
   { to: '/tables', label: 'Tables', icon: <AppstoreOutlined /> },
-  { to: '/orders', label: 'Orders', icon: <ProfileOutlined />, badge: 'print' as const },
   { to: '/billing', label: 'Billing', icon: <WalletOutlined />, badge: 'bill' as const },
   { to: '/menu', label: 'Menu', icon: <FileTextOutlined /> },
   { to: '/settings', label: 'Settings', icon: <SettingOutlined /> },
@@ -23,12 +23,13 @@ export default function AppLayout() {
   const badges = useLiveQuery(async () => {
     const bill = await db.orders.where('status').equals('billing').count();
     const since = Date.now() - 24 * 60 * 60 * 1000;
-    const print = await db.kots
+    // New tickets nobody has started on yet.
+    const kitchen = await db.kots
       .where('createdAt')
       .above(since)
-      .filter((k) => k.printStatus === 'failed' || k.printStatus === 'pending')
+      .filter((k) => k.kitchenStatus === 'new')
       .count();
-    return { bill, print };
+    return { bill, kitchen };
   }, []);
 
   return (

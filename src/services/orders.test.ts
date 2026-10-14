@@ -13,6 +13,7 @@ import {
   sendToKitchen,
   setItemNote,
   setItemQty,
+  setKitchenStatus,
   voidSentItem,
 } from './orders';
 import { orderTotal } from '../domain/totals';
@@ -202,5 +203,30 @@ describe('dishes with two sizes', () => {
     const roti = await menuItem('Tandoori Roti');
     const line = await addItem(o.id, roti, 4, 'Butter');
     expect([line.name, line.unitPrice]).toEqual(['Tandoori Roti (Butter)', 2000]);
+  });
+});
+
+describe('kitchen ticket status', () => {
+  it('new tickets start as New, move through statuses, and are never printed automatically', async () => {
+    const t = await firstTable();
+    const o = await openOrderForTable(t.id, waiter);
+    await addItem(o.id, await menuItem('Naan'), 2);
+    const kot = await sendToKitchen(o.id, waiter);
+    expect(kot.kitchenStatus).toBe('new');
+    expect(kot.printStatus).toBe('pending');
+    for (const s of ['preparing', 'ready', 'served'] as const) {
+      await setKitchenStatus(kot.id, s);
+      expect((await db.kots.get(kot.id))?.kitchenStatus).toBe(s);
+    }
+    await expect(setKitchenStatus('missing', 'ready')).rejects.toThrow(/not found/);
+  });
+
+  it('void tickets also start as New', async () => {
+    const t = await firstTable();
+    const o = await openOrderForTable(t.id, waiter);
+    const item = await addItem(o.id, await menuItem('Naan'));
+    await sendToKitchen(o.id, waiter);
+    const v = await voidSentItem(item.id, 'wrong dish', owner);
+    expect(v.kitchenStatus).toBe('new');
   });
 });

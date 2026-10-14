@@ -1090,3 +1090,201 @@ button {
     color: var(--ink-2);
   }
 }
+
+/* ---------- Kitchen tickets ---------- */
+
+.kgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.kcard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line);
+  border-top: 6px solid var(--indigo);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:active {
+    background: var(--indigo-tint);
+  }
+
+  &.is-preparing {
+    border-top-color: var(--busy-band);
+  }
+
+  &.is-ready {
+    border-top-color: var(--free);
+  }
+
+  &.is-served {
+    border-top-color: var(--line-strong);
+    opacity: 0.8;
+  }
+
+  &.is-void {
+    border-top-color: var(--bill-band);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__no {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  &__place {
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ink-3);
+
+    .ant-tag {
+      margin: 0;
+    }
+  }
+
+  &__lines {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 8px 0 0;
+    border-top: 1px dashed var(--line-strong);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  &__note {
+    font-size: 13px;
+    color: var(--busy);
+    padding-left: 22px;
+  }
+
+  &__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+
+    .ant-tag {
+      margin: 0;
+    }
+  }
+
+  &__open {
+    color: var(--indigo);
+    font-weight: 700;
+  }
+}
+
+.kstatus {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--indigo-tint);
+  color: var(--indigo);
+
+  &.is-preparing {
+    background: var(--busy-tint);
+    color: var(--busy);
+  }
+
+  &.is-ready {
+    background: var(--free-tint);
+    color: var(--free);
+  }
+
+  &.is-served {
+    background: #eceef2;
+    color: var(--ink-3);
+  }
+}
+
+.kstatus-pick {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+
+  @media (min-width: 520px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  &__btn {
+    height: 56px;
+    border-radius: var(--radius-m);
+    border: 2px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+
+    &.is-on {
+      color: #fff;
+      border-color: transparent;
+    }
+
+    &.is-new.is-on {
+      background: var(--indigo);
+    }
+
+    &.is-preparing.is-on {
+      background: #b7791f;
+    }
+
+    &.is-ready.is-on {
+      background: var(--free);
+    }
+
+    &.is-served.is-on {
+      background: var(--ink-3);
+    }
+  }
+}
+
+.kdetail__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 19px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--line);
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+}
+
+.kdetail__qty {
+  min-width: 44px;
+  font-weight: 800;
+}

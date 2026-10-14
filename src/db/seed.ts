@@ -23,7 +23,7 @@ export function defaultSettings(): AppSettings {
       host: '',
       port: 9100,
       paperWidth: 80,
-      autoPrintKot: true,
+      autoPrintKot: false,
       copiesKot: 1,
     },
     requirePin: false,

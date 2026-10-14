@@ -8,7 +8,8 @@ import { theme } from './theme';
 import AppLayout from './components/AppLayout';
 import TablesPage from './pages/TablesPage';
 import OrderPage from './pages/OrderPage';
-import OrdersPage from './pages/OrdersPage';
+import KitchenPage from './pages/KitchenPage';
+import KitchenTicketPage from './pages/KitchenTicketPage';
 import BillingListPage from './pages/BillingListPage';
 import BillingPage from './pages/BillingPage';
 import MenuPage from './pages/MenuPage';
@@ -48,16 +49,18 @@ function Routed() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/tables" replace />} />
+        <Route path="/" element={<Navigate to="/kitchen" replace />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/order/:tableId" element={<OrderPage />} />
         <Route path="/takeaway/:orderId" element={<OrderPage />} />
-        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/kitchen" element={<KitchenPage />} />
+        <Route path="/kitchen/:kotId" element={<KitchenTicketPage />} />
+        <Route path="/orders" element={<Navigate to="/kitchen" replace />} />
         <Route path="/billing" element={<BillingListPage />} />
         <Route path="/billing/:orderId" element={<BillingPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/tables" replace />} />
+        <Route path="*" element={<Navigate to="/kitchen" replace />} />
       </Route>
     </Routes>
   );

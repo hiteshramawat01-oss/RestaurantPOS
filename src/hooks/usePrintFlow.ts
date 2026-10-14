@@ -65,7 +65,7 @@ export function usePrintFlow() {
     new Promise((resolve) => {
       modal.confirm({
         title: `${job.label} did not print`,
-        content: `${error} It is saved. You can retry now or later from the Orders screen.`,
+        content: `${error} It is saved. You can retry now or later from the Kitchen screen.`,
         okText: 'Retry',
         cancelText: 'Later',
         centered: true,

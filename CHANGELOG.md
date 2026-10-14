@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- New home screen: Kitchen. It lists open kitchen tickets, oldest first.
+- Open a ticket to print it (or print again) and set its status: New, Preparing, Ready, Served.
+- Sending an order no longer prints automatically.
+
 ## 1.3.0
 
 - Simpler app: no sign-in or staff users, and no Sales screen.

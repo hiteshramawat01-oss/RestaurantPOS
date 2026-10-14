@@ -8,10 +8,8 @@ import { db } from '../db/db';
 import type { MenuItem, Order } from '../db/types';
 import { formatINR, formatPrice } from '../domain/money';
 import { orderTotal } from '../domain/totals';
-import { useActiveOrders, useSettings, useTables } from '../hooks/data';
-import { usePrintFlow } from '../hooks/usePrintFlow';
+import { useActiveOrders, useTables } from '../hooks/data';
 import { elapsed, useNow } from '../lib/time';
-import { printKot } from '../printing/printService';
 import {
   addItem,
   cancelOrder,
@@ -36,8 +34,6 @@ export default function OrderPage() {
   const { message, modal } = App.useApp();
   const actor = useActor();
   const { isOwner } = useSession();
-  const settings = useSettings();
-  const printFlow = usePrintFlow();
   const now = useNow();
 
   const table = useLiveQuery(async () => (takeaway ? null : ((await db.diningTables.get(tableId)) ?? null)), [tableId, takeaway]);
@@ -132,12 +128,8 @@ export default function OrderPage() {
     try {
       const kot = await sendToKitchen(order.id, actor);
       setDrawer(false);
-      if (settings?.printer.autoPrintKot) {
-        await printFlow({ docType: 'kot', id: kot.id, label: `KOT #${kot.kotNo}`, run: () => printKot(kot.id) });
-      } else {
-        message.success(`KOT #${kot.kotNo} saved. Print it from Orders.`);
-      }
-      navigate('/tables');
+      message.success(`Sent as KOT #${kot.kotNo}`);
+      navigate('/kitchen');
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e));
     } finally {

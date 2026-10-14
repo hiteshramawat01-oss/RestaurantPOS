@@ -51,7 +51,7 @@ export const SCHEMA_V2 = {
   orders: 'id, &orderNo, tableId, status, createdAt, closedAt',
 };
 
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export class PosDB extends Dexie {
   rooms!: Table<Room, string>;
@@ -154,6 +154,25 @@ export class PosDB extends Dexie {
           .toCollection()
           .modify((s: AppSettings) => {
             if (!s.restaurant || s.restaurant.name === 'My Restaurant') s.restaurant = { ...RESTAURANT };
+          });
+      });
+
+    // v5: kitchen ticket status. Tickets made before this version are
+    // treated as served, and slips no longer print automatically.
+    this.version(5)
+      .stores(SCHEMA_V2)
+      .upgrade(async (tx) => {
+        await tx
+          .table('kots')
+          .toCollection()
+          .modify((k: Partial<Kot>) => {
+            if (!k.kitchenStatus) k.kitchenStatus = 'served';
+          });
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((s: AppSettings) => {
+            if (s.printer) s.printer.autoPrintKot = false;
           });
       });
 

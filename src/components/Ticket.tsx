@@ -6,9 +6,6 @@ import { formatINR, formatPrice } from '../domain/money';
 import { lineAmount, orderTotal } from '../domain/totals';
 import { setItemNote, setItemQty, voidSentItem } from '../services/orders';
 import { useActor, useSession } from '../session';
-import { usePrintFlow } from '../hooks/usePrintFlow';
-import { useSettings } from '../hooks/data';
-import { printKot } from '../printing/printService';
 
 const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'No garlic', 'Jain', 'Less oil', 'Parcel', 'Serve first'];
 
@@ -29,8 +26,6 @@ export default function Ticket({ order, items, kotNos, sending, onSend, onReques
   const [noteText, setNoteText] = useState('');
   const [voidFor, setVoidFor] = useState<OrderItem | null>(null);
   const [voidReason, setVoidReason] = useState('');
-  const printFlow = usePrintFlow();
-  const settings = useSettings();
 
   const draft = items.filter((i) => !i.kotId).sort((a, b) => a.createdAt - b.createdAt);
   const sent = items.filter((i) => i.kotId).sort((a, b) => a.createdAt - b.createdAt);
@@ -200,7 +195,7 @@ export default function Ticket({ order, items, kotNos, sending, onSend, onReques
       <Modal
         open={!!voidFor}
         title={voidFor ? `Void ${voidFor.qty} × ${voidFor.name}?` : ''}
-        okText="Void and print slip"
+        okText="Void item"
         okButtonProps={{ danger: true, disabled: !voidReason.trim() }}
         onCancel={() => setVoidFor(null)}
         onOk={() =>
@@ -208,15 +203,13 @@ export default function Ticket({ order, items, kotNos, sending, onSend, onReques
             if (!voidFor) return;
             const kot = await voidSentItem(voidFor.id, voidReason, actor);
             setVoidFor(null);
-            if (settings?.printer.autoPrintKot)
-              await printFlow({ docType: 'kot', id: kot.id, label: `Cancel slip KOT #${kot.kotNo}`, run: () => printKot(kot.id) });
-            else message.success('Item voided. Print the cancel slip from Orders → Kitchen tickets.');
+            message.success(`Item voided. Cancel slip KOT #${kot.kotNo} is on the Kitchen screen.`);
           })
         }
         destroyOnHidden
         centered
       >
-        <p>The kitchen gets a CANCEL / VOID slip. The item is removed from the bill and kept in the record.</p>
+        <p>A CANCEL / VOID ticket goes to the Kitchen screen. The item is removed from the bill and kept in the record.</p>
         <Input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Reason (required)" maxLength={80} />
       </Modal>
     </div>

@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import type { Kot, KotLine, MenuItem, Order, OrderItem } from '../db/types';
+import type { KitchenStatus, Kot, KotLine, MenuItem, Order, OrderItem } from '../db/types';
 import { newId } from '../lib/id';
 import { billableItems } from '../domain/totals';
 import { addAudit, nextNumber, PosError, requireOwner, type Actor } from './common';
@@ -225,6 +225,8 @@ export async function sendToKitchen(orderId: string, actor: Actor): Promise<Kot>
         createdAt: Date.now(),
         printStatus: 'pending',
         printCount: 0,
+        kitchenStatus: 'new',
+        statusAt: Date.now(),
       };
       await db.kots.add(kot);
       for (const i of pending) await db.orderItems.update(i.id, { kotId: kot.id });
@@ -262,6 +264,8 @@ export async function voidSentItem(itemId: string, reason: string, actor: Actor)
         createdAt: Date.now(),
         printStatus: 'pending',
         printCount: 0,
+        kitchenStatus: 'new',
+        statusAt: Date.now(),
       };
       await db.kots.add(kot);
       await db.orderItems.update(itemId, { voided: true, voidReason: reason.trim(), voidKotId: kot.id });
@@ -344,4 +348,17 @@ export async function cancelOrder(orderId: string, reason: string, actor: Actor)
     });
     await addAudit('CANCEL_ORDER', `Order #${order.orderNo}: ${reason.trim()}`, actor);
   });
+}
+
+export const KITCHEN_STATUSES: KitchenStatus[] = ['new', 'preparing', 'ready', 'served'];
+
+export function kitchenStatusOf(kot: Pick<Kot, 'kitchenStatus'>): KitchenStatus {
+  return kot.kitchenStatus ?? 'served';
+}
+
+/** Move a kitchen ticket to New, Preparing, Ready or Served. */
+export async function setKitchenStatus(kotId: string, status: KitchenStatus): Promise<void> {
+  if (!KITCHEN_STATUSES.includes(status)) throw new PosError('BAD_STATUS', 'Unknown ticket status.');
+  const n = await db.kots.update(kotId, { kitchenStatus: status, statusAt: Date.now() });
+  if (!n) throw new PosError('NO_KOT', 'Kitchen ticket not found.');
 }

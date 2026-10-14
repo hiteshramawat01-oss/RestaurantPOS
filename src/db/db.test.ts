@@ -130,4 +130,21 @@ describe('database', () => {
     d.close();
     await d.delete();
   });
+
+  it('upgrading marks earlier kitchen tickets as served and turns off automatic printing', async () => {
+    const name = 'v5-migration-test';
+    const old = new Dexie(name);
+    old.version(1).stores(SCHEMA_V1);
+    for (const v of [2, 3, 4]) old.version(v).stores(SCHEMA_V2);
+    await old.open();
+    await old.table('kots').add({ id: 'k1', kotNo: 1, orderId: 'o1', createdAt: 1, printStatus: 'printed', printCount: 1, lines: [] });
+    await old.table('settings').add({ key: 'app', restaurant: { name: 'X' }, printer: { autoPrintKot: true } });
+    old.close();
+    const d = new PosDB(name);
+    await d.open();
+    expect((await d.kots.get('k1'))?.kitchenStatus).toBe('served');
+    expect((await d.settings.get('app'))?.printer.autoPrintKot).toBe(false);
+    d.close();
+    await d.delete();
+  });
 });

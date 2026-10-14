@@ -97,6 +97,9 @@ export interface OrderItem {
 
 export type KotKind = 'NEW' | 'ADDED' | 'VOID';
 
+/** Where the ticket is in the kitchen. Missing on old records = 'served'. */
+export type KitchenStatus = 'new' | 'preparing' | 'ready' | 'served';
+
 export type PrintStatus =
   | 'pending' // not attempted yet
   | 'printing'
@@ -126,6 +129,8 @@ export interface Kot {
   printStatus: PrintStatus;
   printCount: number; // successful prints (reprints increase this)
   lastError?: string;
+  kitchenStatus?: KitchenStatus;
+  statusAt?: number; // when kitchenStatus last changed
 }
 
 export type PrintDocType = 'kot' | 'invoice' | 'test';
