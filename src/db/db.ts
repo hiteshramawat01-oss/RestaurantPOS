@@ -17,6 +17,7 @@ import type {
   Staff,
 } from './types';
 import { seedDatabase, TABLE_LAYOUT } from './seed';
+import { buildMenu, RESTAURANT, SAMPLE_CATEGORIES, SAMPLE_DISHES } from './menuData';
 import { newId } from '../lib/id';
 
 export const DB_NAME = 'restaurant-pos';
@@ -50,7 +51,7 @@ export const SCHEMA_V2 = {
   orders: 'id, &orderNo, tableId, status, createdAt, closedAt',
 };
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export class PosDB extends Dexie {
   rooms!: Table<Room, string>;
@@ -125,6 +126,35 @@ export class PosDB extends Dexie {
         await tx.table('settings').toCollection().modify((s: Partial<AppSettings>) => {
           s.requirePin = false;
         });
+      });
+
+    // v4: the restaurant's real menu and details (Mewari Makkhan Dhaba).
+    // The sample dishes that came with earlier versions are removed; any dish
+    // added by hand is kept. Past orders are unaffected: they store their own
+    // dish names and prices.
+    this.version(4)
+      .stores(SCHEMA_V2)
+      .upgrade(async (tx) => {
+        const cats: Category[] = await tx.table('categories').toArray();
+        const sampleCatIds = new Set(cats.filter((c) => SAMPLE_CATEGORIES.has(c.name)).map((c) => c.id));
+        const items: MenuItem[] = await tx.table('menuItems').toArray();
+        const remove = items.filter((i) => sampleCatIds.has(i.categoryId) && SAMPLE_DISHES.has(i.name));
+        await tx.table('menuItems').bulkDelete(remove.map((i) => i.id));
+        const kept = items.filter((i) => !remove.includes(i));
+        const emptySample = [...sampleCatIds].filter((id) => !kept.some((i) => i.categoryId === id));
+        await tx.table('categories').bulkDelete(emptySample);
+        const { categories, menuItems } = buildMenu(1);
+        // Hand-made categories go after the real menu.
+        const leftover = cats.filter((c) => !emptySample.includes(c.id));
+        for (const [k, c] of leftover.entries()) await tx.table('categories').update(c.id, { sortOrder: categories.length + 1 + k });
+        await tx.table('categories').bulkAdd(categories);
+        await tx.table('menuItems').bulkAdd(menuItems);
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((s: AppSettings) => {
+            if (!s.restaurant || s.restaurant.name === 'My Restaurant') s.restaurant = { ...RESTAURANT };
+          });
       });
 
     this.on('populate', (tx) => seedDatabase(tx));

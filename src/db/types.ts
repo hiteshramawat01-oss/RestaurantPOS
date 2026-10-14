@@ -28,11 +28,18 @@ export interface Category {
   active: boolean;
 }
 
+/** A size/option with its own price, e.g. Half / Full, Plain / Butter. */
+export interface MenuVariant {
+  label: string;
+  price: number; // paise
+}
+
 export interface MenuItem {
   id: ID;
   categoryId: ID;
   name: string;
-  price: number; // paise
+  price: number; // paise (for two-size dishes: the first size's price)
+  variants?: MenuVariant[]; // two or more sizes; staff choose one when ordering
   active: boolean; // false = deactivated (hidden everywhere except Menu screen)
   available: boolean; // false = temporarily unavailable (shown greyed out)
   prepNote?: string; // standing kitchen instruction printed on every KOT
@@ -76,7 +83,8 @@ export interface OrderItem {
   id: ID;
   orderId: ID;
   menuItemId: ID;
-  name: string; // snapshot at time of ordering
+  name: string; // snapshot at time of ordering, includes the size, e.g. "Dal Fry (Half)"
+  variant?: string; // size label, e.g. "Half"
   unitPrice: number; // paise snapshot
   qty: number;
   note?: string;

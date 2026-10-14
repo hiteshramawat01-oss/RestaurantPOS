@@ -19,7 +19,7 @@ async function setupKot() {
   });
   const t = await firstTable();
   const o = await openOrderForTable(t.id, waiter);
-  await addItem(o.id, await menuItem('Dal Makhani'));
+  await addItem(o.id, await menuItem('Lassan ki Chatni'));
   return sendToKitchen(o.id, waiter);
 }
 

@@ -84,12 +84,49 @@ describe('database', () => {
 
     const d = new PosDB(name);
     await d.open();
-    expect(d.verno).toBe(3);
+    expect(d.verno).toBe(CURRENT_SCHEMA_VERSION);
     expect((await d.diningTables.get('a3'))?.label).toBe('3');
     expect((await d.diningTables.get('a6'))?.active).toBe(false); // AC has 5 tables now
     expect((await d.diningTables.get('n8'))?.label).toBe('8');
     expect((await d.orders.get('o1'))?.tableId).toBe('a3');
     expect((await d.diningTables.filter((t) => t.active).count())).toBe(13);
+    d.close();
+    await d.delete();
+  });
+
+  it('upgrading replaces the sample menu with the real menu and keeps hand-added dishes', async () => {
+    const name = 'v4-migration-test';
+    const old = new Dexie(name);
+    old.version(1).stores(SCHEMA_V1);
+    old.version(2).stores(SCHEMA_V2);
+    old.version(3).stores(SCHEMA_V2);
+    await old.open();
+    await old.table('categories').bulkAdd([
+      { id: 'starters', name: 'Starters', sortOrder: 1, active: true },
+      { id: 'breads', name: 'Breads', sortOrder: 2, active: true },
+    ]);
+    await old.table('menuItems').bulkAdd([
+      { id: 's1', categoryId: 'starters', name: 'Veg Spring Roll', price: 16000, active: true, available: true, sortOrder: 1 },
+      { id: 'b1', categoryId: 'breads', name: 'Butter Naan', price: 5000, active: true, available: true, sortOrder: 1 },
+      { id: 'mine', categoryId: 'breads', name: 'Owner Special Roti', price: 3000, active: true, available: true, sortOrder: 2 },
+    ]);
+    await old.table('settings').add({ key: 'app', restaurant: { name: 'My Restaurant', address: '', phone: '', gstin: '', footer: '' } });
+    old.close();
+
+    const d = new PosDB(name);
+    await d.open();
+    expect(await d.menuItems.get('s1')).toBeUndefined();
+    expect((await d.menuItems.get('mine'))?.name).toBe('Owner Special Roti');
+    expect(await d.categories.get('starters')).toBeUndefined();
+    expect((await d.categories.get('breads'))?.name).toBe('Breads');
+    const dal = await d.menuItems.filter((m) => m.name === 'Dal Makhni').first();
+    expect(dal?.variants).toEqual([
+      { label: 'Half', price: 15000 },
+      { label: 'Full', price: 28000 },
+    ]);
+    const s = await d.settings.get('app');
+    expect(s?.restaurant.name).toBe('Mewari Makkhan Dhaba');
+    expect(s?.restaurant.phone).toBe('7737788703');
     d.close();
     await d.delete();
   });

@@ -9,8 +9,8 @@ beforeEach(resetDb);
 async function billPendingOrder(tableIndex = 0) {
   const tables = await db.diningTables.orderBy('sortOrder').toArray();
   const o = await openOrderForTable(tables[tableIndex].id, waiter);
-  await addItem(o.id, await menuItem('Paneer Tikka'), 2); // 480
-  await addItem(o.id, await menuItem('Butter Naan'), 4); // 200
+  await addItem(o.id, await menuItem('Paneer Tikka'), 2); // 640
+  await addItem(o.id, await menuItem('Naan'), 4); // 160
   await sendToKitchen(o.id, waiter);
   await requestBill(o.id);
   return o;
@@ -23,12 +23,12 @@ describe('invoices', () => {
     await db.settings.put(s);
     const o = await billPendingOrder();
     const inv = await finalizeInvoice(o.id, { discountType: 'percent', discountValue: 10 }, owner);
-    expect(inv.subtotal).toBe(68000);
-    expect(inv.discountAmount).toBe(6800);
-    expect(inv.taxes.map((t) => t.amount)).toEqual([1530, 1530]);
-    // 612.00 taxable + 30.60 tax = 642.60, rounded to 643.00
-    expect(inv.total).toBe(64300);
-    expect(inv.roundOff).toBe(40);
+    expect(inv.subtotal).toBe(80000);
+    expect(inv.discountAmount).toBe(8000);
+    expect(inv.taxes.map((t) => t.amount)).toEqual([1800, 1800]);
+    // 720.00 taxable + 36.00 tax = 756.00
+    expect(inv.total).toBe(75600);
+    expect(inv.roundOff).toBe(0);
   });
 
   it('is idempotent on double tap and numbers invoices uniquely', async () => {

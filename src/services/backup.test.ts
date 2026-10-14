@@ -10,7 +10,7 @@ describe('backup and restore', () => {
   it('round-trips all data', async () => {
     const t = (await db.diningTables.toArray())[0];
     const o = await openOrderForTable(t.id, waiter);
-    await addItem(o.id, await menuItem('Dal Makhani'), 2);
+    await addItem(o.id, await menuItem('Lassan ki Chatni'), 2);
     await sendToKitchen(o.id, waiter);
     const backup = JSON.parse(JSON.stringify(await exportBackup()));
 
@@ -25,7 +25,7 @@ describe('backup and restore', () => {
     expect(await db.orders.count()).toBe(1);
     expect(await db.kots.count()).toBe(1);
     expect((await db.menuItems.count()) > 10).toBe(true);
-    expect((await db.settings.get('app'))?.restaurant.name).toBe('My Restaurant');
+    expect((await db.settings.get('app'))?.restaurant.name).toBe('Mewari Makkhan Dhaba');
   });
 
   it('rejects files that are not POS backups', () => {

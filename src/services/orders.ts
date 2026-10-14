@@ -95,13 +95,28 @@ async function touch(orderId: string) {
 }
 
 /** Add one (or `qty`) of a dish. Merges into an unsent line of the same dish without a note. */
-export async function addItem(orderId: string, menuItem: MenuItem, qty = 1): Promise<OrderItem> {
+/**
+ * Add one (or `qty`) of a dish. For dishes with sizes (Half / Full, Plain /
+ * Butter) the size label must be given. Merges into an unsent line of the
+ * same dish and size without a note.
+ */
+export async function addItem(orderId: string, menuItem: MenuItem, qty = 1, variant?: string): Promise<OrderItem> {
   if (!menuItem.active || !menuItem.available)
     throw new PosError('UNAVAILABLE', `${menuItem.name} is not available right now.`);
+  let unitPrice = menuItem.price;
+  let name = menuItem.name;
+  if (menuItem.variants?.length) {
+    const v = menuItem.variants.find((x) => x.label === variant);
+    if (!v) throw new PosError('CHOOSE_SIZE', `Choose ${menuItem.variants.map((x) => x.label).join(' or ')} for ${menuItem.name}.`);
+    unitPrice = v.price;
+    name = `${menuItem.name} (${v.label})`;
+  }
   return db.transaction('rw', db.orders, db.orderItems, async () => {
     await requireOpenOrder(orderId);
     const items = await db.orderItems.where('orderId').equals(orderId).toArray();
-    const mergeable = items.find((i) => !i.kotId && !i.voided && i.menuItemId === menuItem.id && !i.note);
+    const mergeable = items.find(
+      (i) => !i.kotId && !i.voided && i.menuItemId === menuItem.id && i.variant === (menuItem.variants?.length ? variant : undefined) && !i.note,
+    );
     if (mergeable) {
       mergeable.qty += qty;
       await db.orderItems.update(mergeable.id, { qty: mergeable.qty });
@@ -112,8 +127,9 @@ export async function addItem(orderId: string, menuItem: MenuItem, qty = 1): Pro
       id: newId(),
       orderId,
       menuItemId: menuItem.id,
-      name: menuItem.name,
-      unitPrice: menuItem.price,
+      name,
+      ...(menuItem.variants?.length ? { variant } : {}),
+      unitPrice,
       qty,
       createdAt: Date.now(),
     };

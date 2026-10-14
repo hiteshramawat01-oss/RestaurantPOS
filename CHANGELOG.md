@@ -6,6 +6,8 @@
 - Settings now has only Printer and App update.
 - Find printers: searches the phone's Wi-Fi for network printers; tap one to use it.
 - Tables set to AC 1–5 and Non-AC 1–8.
+- Mewari Makkhan Dhaba's full menu (105 dishes) with Half / Full and Plain / Butter prices; tap a dish to choose the size.
+- Bills show Mewari Makkhan Dhaba with address and phone.
 - This version changes the Android app itself, so it is installed once from the APK.
 
 ## 1.2.0

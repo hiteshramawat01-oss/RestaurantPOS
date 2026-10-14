@@ -21,7 +21,7 @@ describe('takeaway orders', () => {
   it('prints a KOT marked TAKEAWAY with the customer name and no table', async () => {
     const o = await openTakeawayOrder(waiter);
     await setCustomerName(o.id, '  Meena  ');
-    await addItem(o.id, await menuItem('Veg Biryani'), 2);
+    await addItem(o.id, await menuItem('Veg. Dum Biryani'), 2);
     const kot = await sendToKitchen(o.id, waiter);
     expect(kot.takeaway).toBe(true);
     expect(kot.customerName).toBe('Meena');
@@ -33,7 +33,7 @@ describe('takeaway orders', () => {
 
   it('bills and closes a takeaway order and counts it in sales', async () => {
     const o = await openTakeawayOrder(waiter, 'Ravi');
-    await addItem(o.id, await menuItem('Veg Biryani'));
+    await addItem(o.id, await menuItem('Veg. Dum Biryani'));
     await sendToKitchen(o.id, waiter);
     await requestBill(o.id);
     const inv = await finalizeInvoice(o.id, { discountType: 'none', discountValue: 0 }, waiter);
@@ -42,7 +42,7 @@ describe('takeaway orders', () => {
     await confirmPayment(inv.id, 'cash', waiter);
     expect((await db.orders.get(o.id))?.status).toBe('paid');
     const { summary } = await loadSales(startOfDay(), endOfDay());
-    expect(summary.totalSales).toBe(22000);
+    expect(summary.totalSales).toBe(25000);
   });
 
   it('cannot be moved to a table', async () => {

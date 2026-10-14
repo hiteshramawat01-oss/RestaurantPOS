@@ -56,7 +56,7 @@ describe('loadSales', () => {
     const tables = await db.diningTables.toArray();
     for (const [i, method] of (['cash', 'upi'] as const).entries()) {
       const o = await openOrderForTable(tables[i].id, waiter);
-      await addItem(o.id, await menuItem('Veg Biryani'));
+      await addItem(o.id, await menuItem('Veg. Dum Biryani'));
       await sendToKitchen(o.id, waiter);
       await requestBill(o.id);
       const invoice = await finalizeInvoice(o.id, { discountType: 'none', discountValue: 0 }, waiter);
@@ -66,9 +66,9 @@ describe('loadSales', () => {
     const cancelled = await openOrderForTable(t.id, waiter);
     await cancelOrder(cancelled.id, 'test', owner);
     const { summary } = await loadSales(startOfDay(), endOfDay());
-    expect(summary.totalSales).toBe(44000);
-    expect(summary.cash).toBe(22000);
-    expect(summary.upi).toBe(22000);
+    expect(summary.totalSales).toBe(50000);
+    expect(summary.cash).toBe(25000);
+    expect(summary.upi).toBe(25000);
     expect(summary.completedOrders).toBe(2);
     expect(summary.cancelledOrders).toBe(1);
   });

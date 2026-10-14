@@ -65,6 +65,7 @@ export default function OrderPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [nameOpen, setNameOpen] = useState(false);
   const [nameText, setNameText] = useState('');
+  const [sizeFor, setSizeFor] = useState<MenuItem | null>(null);
 
   // Remember the order id to drop it if the waiter leaves without adding anything.
   const orderIdRef = useRef<string | undefined>(undefined);
@@ -111,10 +112,14 @@ export default function OrderPage() {
     );
   const heading = takeaway ? `Takeaway #${order!.orderNo}` : `Table ${table!.label}`;
 
-  const add = async (m: MenuItem) => {
+  const add = async (m: MenuItem, variant?: string) => {
+    if (m.variants?.length && !variant) {
+      setSizeFor(m); // ask Half / Full first
+      return;
+    }
     try {
       const o = await ensureOrder();
-      await addItem(o.id, m);
+      await addItem(o.id, m, 1, variant);
       navigator.vibrate?.(8);
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e));
@@ -297,13 +302,13 @@ export default function OrderPage() {
               const q = draftQty.get(m.id);
               const disabled = !m.available || order?.status === 'billing';
               return (
-                <button key={m.id} className="dish" disabled={disabled} onClick={() => add(m)} aria-label={`Add ${m.name}, ${formatPrice(m.price)}`}>
+                <button key={m.id} className="dish" disabled={disabled} onClick={() => add(m)} aria-label={`Add ${m.name}, ${priceText(m)}`}>
                   {q ? <span className="dish__qty">{q}</span> : null}
                   <span className="dish__name">
                     {m.veg !== undefined && <i className={`veg-dot${m.veg ? '' : ' is-nonveg'}`} aria-label={m.veg ? 'Veg' : 'Non-veg'} />}
                     {m.name}
                   </span>
-                  <span className="dish__price">{m.available ? formatPrice(m.price) : 'Unavailable'}</span>
+                  <span className="dish__price">{m.available ? priceText(m) : 'Unavailable'}</span>
                 </button>
               );
             })}
@@ -326,6 +331,33 @@ export default function OrderPage() {
           <span className="cartbar__total money">{formatINR(orderTotal(items))}</span>
         </button>
       )}
+
+      <Modal
+        open={!!sizeFor}
+        title={sizeFor?.name}
+        footer={null}
+        onCancel={() => setSizeFor(null)}
+        centered
+        destroyOnHidden
+        width={380}
+      >
+        <div className="sizes">
+          {sizeFor?.variants?.map((v) => (
+            <button
+              key={v.label}
+              className="sizes__btn"
+              onClick={() => {
+                const m = sizeFor;
+                setSizeFor(null);
+                void add(m, v.label);
+              }}
+            >
+              <span className="sizes__label">{v.label}</span>
+              <span className="sizes__price">{formatPrice(v.price)}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       <Drawer
         placement="bottom"
@@ -462,4 +494,9 @@ export function CancelOrderModal({ open, onClose, onConfirm }: { open: boolean; 
       <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" maxLength={80} />
     </Modal>
   );
+}
+
+/** "₹120 / ₹220" for two-size dishes, "₹320" otherwise. */
+function priceText(m: MenuItem): string {
+  return m.variants?.length ? m.variants.map((v) => formatPrice(v.price)).join(' / ') : formatPrice(m.price);
 }

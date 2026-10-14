@@ -11,8 +11,12 @@ import { useSession } from '../session';
 interface ItemForm {
   name: string;
   categoryId: string;
+  sizes: 'one' | 'two';
   price: number;
-  veg: 'veg' | 'nonveg' | 'none';
+  size1Label: string;
+  size1Price: number;
+  size2Label: string;
+  size2Price: number;
   prepNote?: string;
   available: boolean;
   active: boolean;
@@ -40,12 +44,28 @@ export default function MenuPage() {
     setEditing(it);
     form.setFieldsValue(
       it === 'new'
-        ? { name: '', categoryId: current, price: undefined as unknown as number, veg: 'veg', prepNote: '', available: true, active: true }
+        ? {
+            name: '',
+            categoryId: current,
+            sizes: 'one',
+            price: undefined as unknown as number,
+            size1Label: 'Half',
+            size1Price: undefined as unknown as number,
+            size2Label: 'Full',
+            size2Price: undefined as unknown as number,
+            prepNote: '',
+            available: true,
+            active: true,
+          }
         : {
             name: it.name,
             categoryId: it.categoryId,
+            sizes: it.variants?.length ? 'two' : 'one',
             price: paiseToRupees(it.price),
-            veg: it.veg === undefined ? 'none' : it.veg ? 'veg' : 'nonveg',
+            size1Label: it.variants?.[0]?.label ?? 'Half',
+            size1Price: it.variants?.[0] ? paiseToRupees(it.variants[0].price) : (undefined as unknown as number),
+            size2Label: it.variants?.[1]?.label ?? 'Full',
+            size2Price: it.variants?.[1] ? paiseToRupees(it.variants[1].price) : (undefined as unknown as number),
             prepNote: it.prepNote ?? '',
             available: it.available,
             active: it.active,
@@ -58,8 +78,16 @@ export default function MenuPage() {
     const data: Omit<MenuItem, 'id' | 'sortOrder'> = {
       name: v.name.trim(),
       categoryId: v.categoryId,
-      price: rupeesToPaise(v.price),
-      veg: v.veg === 'none' ? undefined : v.veg === 'veg',
+      ...(v.sizes === 'two'
+        ? {
+            price: rupeesToPaise(v.size1Price),
+            variants: [
+              { label: v.size1Label.trim() || 'Half', price: rupeesToPaise(v.size1Price) },
+              { label: v.size2Label.trim() || 'Full', price: rupeesToPaise(v.size2Price) },
+            ],
+          }
+        : { price: rupeesToPaise(v.price), variants: undefined }),
+      veg: editing && editing !== 'new' ? editing.veg : undefined,
       prepNote: v.prepNote?.trim() || undefined,
       available: v.available,
       active: v.active,
@@ -115,7 +143,7 @@ export default function MenuPage() {
           {it.name}
         </div>
         <div className="rowlist__sub">
-          {formatPrice(it.price)}
+          {it.variants?.length ? it.variants.map((x) => `${x.label} ${formatPrice(x.price)}`).join(' · ') : formatPrice(it.price)}
           {it.prepNote && ` · Kitchen: ${it.prepNote}`}
         </div>
       </div>
@@ -248,25 +276,41 @@ export default function MenuPage() {
           <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: 'Enter the dish name' }]}>
             <Input size="large" maxLength={40} />
           </Form.Item>
-          <div className="form-grid">
-            <Form.Item name="price" label="Price (₹)" rules={[{ required: true, message: 'Enter the price' }]}>
-              <InputNumber size="large" min={0} max={100000} step={5} precision={2} inputMode="decimal" style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="categoryId" label="Category">
-              <Select size="large" options={categories.map((c) => ({ value: c.id, label: c.name }))} />
-            </Form.Item>
-          </div>
-          <Form.Item name="veg" label="Type">
+          <Form.Item name="categoryId" label="Category">
+            <Select size="large" options={categories.map((c) => ({ value: c.id, label: c.name }))} />
+          </Form.Item>
+          <Form.Item name="sizes" label="Price">
             <Radio.Group
               optionType="button"
               buttonStyle="solid"
               size="large"
               options={[
-                { value: 'veg', label: 'Veg' },
-                { value: 'nonveg', label: 'Non-veg' },
-                { value: 'none', label: 'Not shown' },
+                { value: 'one', label: 'One price' },
+                { value: 'two', label: 'Two sizes (Half / Full)' },
               ]}
             />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(a, b) => a.sizes !== b.sizes}>
+            {({ getFieldValue }) =>
+              getFieldValue('sizes') === 'two' ? (
+                <>
+                  {([1, 2] as const).map((n) => (
+                    <div key={n} className="form-grid">
+                      <Form.Item name={`size${n}Label`} label={`Size ${n}`} rules={[{ required: true, whitespace: true, message: 'Enter a name' }]}>
+                        <Input size="large" maxLength={12} />
+                      </Form.Item>
+                      <Form.Item name={`size${n}Price`} label="Price (₹)" rules={[{ required: true, message: 'Enter the price' }]}>
+                        <InputNumber size="large" min={0} max={100000} step={5} precision={2} inputMode="decimal" style={{ width: '100%' }} />
+                      </Form.Item>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <Form.Item name="price" label="Price (₹)" rules={[{ required: true, message: 'Enter the price' }]}>
+                  <InputNumber size="large" min={0} max={100000} step={5} precision={2} inputMode="decimal" style={{ width: '100%' }} />
+                </Form.Item>
+              )
+            }
           </Form.Item>
           <Form.Item name="prepNote" label="Kitchen instruction (printed on every KOT)">
             <Input size="large" maxLength={60} placeholder="e.g. Serve with green chutney" />
