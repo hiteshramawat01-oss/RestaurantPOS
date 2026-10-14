@@ -1384,6 +1384,10 @@ button {
     color: #fff;
     background: #b7791f;
 
+    &.is-partly {
+      background: var(--free);
+    }
+
     &.is-payment {
       background: var(--bill);
     }
@@ -1478,6 +1482,10 @@ button {
     &.is-payment {
       color: var(--bill);
     }
+
+    &.is-partly {
+      color: var(--free);
+    }
   }
 
   &__lines {
@@ -1487,7 +1495,7 @@ button {
 
     li {
       display: grid;
-      grid-template-columns: 40px minmax(0, 1fr) auto 36px;
+      grid-template-columns: 44px 40px minmax(0, 1fr) auto 36px;
       align-items: center;
       gap: 6px;
       padding: 9px 0;
@@ -1498,6 +1506,34 @@ button {
         opacity: 0.45;
         text-decoration: line-through;
       }
+
+      &.is-served .osheet__name,
+      &.is-served .osheet__qty {
+        color: var(--ink-3);
+      }
+    }
+  }
+
+  &__tick,
+  &__tick-space {
+    width: 36px;
+    height: 36px;
+  }
+
+  &__tick {
+    border-radius: 50%;
+    border: 2px solid var(--line-strong);
+    background: var(--surface);
+    color: transparent;
+    font-size: 16px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+
+    &.is-on {
+      border-color: var(--free);
+      background: var(--free);
+      color: #fff;
     }
   }
 
@@ -2009,5 +2045,21 @@ button {
   &__price {
     font-size: 14px;
     color: var(--ink-3);
+  }
+}
+
+/* Order page (full screen) */
+.opage {
+  padding-bottom: calc(32px + var(--safe-b));
+
+  .osheet__lines li {
+    padding: 12px 0;
+    font-size: 17px;
+  }
+
+  .osheet__tick,
+  .osheet__tick-space {
+    width: 40px;
+    height: 40px;
   }
 }

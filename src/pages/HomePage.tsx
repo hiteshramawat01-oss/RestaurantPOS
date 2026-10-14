@@ -1,11 +1,10 @@
 import { PlusOutlined, PrinterOutlined } from '@ant-design/icons';
 import { Spin } from 'antd';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppMenu from '../components/AppMenu';
-import OrderSheet from '../components/OrderSheet';
 import { formatPrice } from '../domain/money';
-import { hasFood, summarize, type OrderSummary } from '../domain/orderState';
+import { hasFood, STAGE_LABEL, summarize, type OrderSummary } from '../domain/orderState';
 import { useOpenOrders, useSettings } from '../hooks/data';
 import { elapsed, useNow } from '../lib/time';
 
@@ -19,7 +18,6 @@ export default function HomePage() {
   const settings = useSettings();
   const navigate = useNavigate();
   const now = useNow();
-  const [openId, setOpenId] = useState<string | null>(null);
 
   const orders = useMemo<OrderSummary[]>(() => {
     if (!data) return [];
@@ -36,8 +34,6 @@ export default function HomePage() {
       .filter((s) => hasFood(s.items) || s.kots.length > 0)
       .sort((a, b) => a.order.createdAt - b.order.createdAt);
   }, [data]);
-
-  const selected = orders.find((o) => o.order.id === openId) ?? null;
 
   return (
     <div className="home">
@@ -62,12 +58,14 @@ export default function HomePage() {
             <button
               key={s.order.id}
               className={`ocard is-${s.stage}`}
-              onClick={() => setOpenId(s.order.id)}
-              aria-label={`${s.title}, ${s.stage === 'payment' ? 'payment pending' : 'preparing'}`}
+              onClick={() => navigate(`/order/${s.order.id}`)}
+              aria-label={`${s.title}, ${STAGE_LABEL[s.stage]}`}
             >
               <div className="ocard__title">{s.title}</div>
               <div className="ocard__sub">{s.subtitle}</div>
-              <div className={`ocard__stage is-${s.stage}`}>{s.stage === 'payment' ? 'Payment pending' : 'Preparing'}</div>
+              <div className={`ocard__stage is-${s.stage}`}>
+                {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
+              </div>
               <div className="ocard__money">
                 {s.count} item{s.count === 1 ? '' : 's'} · {formatPrice(s.total)}
               </div>
@@ -93,7 +91,6 @@ export default function HomePage() {
         <span>New order</span>
       </button>
 
-      <OrderSheet summary={selected} onClose={() => setOpenId(null)} />
     </div>
   );
 }

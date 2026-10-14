@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/db';
 import { firstTable, menuItem, resetDb, waiter } from '../test/helpers';
 import { cancelInvoice, finalizeInvoice } from './billing';
-import { getActiveOrderForTable, markDelivered, placeOrder, requestBill } from './orders';
+import { getActiveOrderForTable, markDelivered, markNotDelivered, placeOrder, requestBill, setItemDelivered } from './orders';
+import { stageOf } from '../domain/orderState';
 import { owner } from '../test/helpers';
 
 beforeEach(resetDb);
@@ -81,5 +82,49 @@ describe('placing orders in one step', () => {
     await expect(placeOrder({ kind: 'table', tableId: t.id }, [{ menuItemId: dal.id, qty: 1 }], waiter)).rejects.toThrow(/Half or Full/);
     expect(await db.orders.count()).toBe(0);
     expect(await db.kots.count()).toBe(0);
+  });
+});
+
+describe('serving dish by dish', () => {
+  it('ticks single dishes, shows partly served, and becomes payment pending when all are served', async () => {
+    const t = await firstTable();
+    const naan = await menuItem('Naan');
+    const dal = await menuItem('Dal Makhni');
+    const { order } = await placeOrder(
+      { kind: 'table', tableId: t.id },
+      [
+        { menuItemId: dal.id, variant: 'Full', qty: 1 },
+        { menuItemId: naan.id, qty: 4 },
+      ],
+      waiter,
+    );
+    const [first, second] = (await db.orderItems.where('orderId').equals(order.id).toArray()).sort((a, b) => a.createdAt - b.createdAt);
+    const items = () => db.orderItems.where('orderId').equals(order.id).toArray();
+
+    await setItemDelivered(first.id, true);
+    let o = (await db.orders.get(order.id))!;
+    expect(stageOf(o, await items())).toBe('partly');
+
+    await setItemDelivered(second.id, true);
+    o = (await db.orders.get(order.id))!;
+    expect(o.servedAt).toBeDefined();
+    expect(stageOf(o, await items())).toBe('payment');
+
+    await setItemDelivered(second.id, false); // undo one
+    o = (await db.orders.get(order.id))!;
+    expect(o.servedAt).toBeUndefined();
+    expect(stageOf(o, await items())).toBe('partly');
+
+    // new food arrives: the new dish is not served yet
+    await setItemDelivered(second.id, true);
+    await placeOrder({ kind: 'existing', orderId: order.id }, [{ menuItemId: naan.id, qty: 1 }], waiter);
+    o = (await db.orders.get(order.id))!;
+    expect(stageOf(o, await items())).toBe('partly');
+
+    await markDelivered(order.id);
+    expect((await items()).every((i) => i.deliveredAt)).toBe(true);
+    await markNotDelivered(order.id);
+    o = (await db.orders.get(order.id))!;
+    expect(stageOf(o, await items())).toBe('preparing');
   });
 });

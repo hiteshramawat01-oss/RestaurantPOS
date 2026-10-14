@@ -1,22 +1,37 @@
-import { CheckOutlined, CloseOutlined, PlusOutlined, PrinterOutlined, WalletOutlined } from '@ant-design/icons';
-import { App, Button, Drawer, Input, Modal } from 'antd';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, PlusOutlined, PrinterOutlined, WalletOutlined } from '@ant-design/icons';
+import { App, Button, Input, Modal, Spin } from 'antd';
+import { useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { OrderItem } from '../db/types';
 import { formatINR } from '../domain/money';
-import type { OrderSummary } from '../domain/orderState';
+import { STAGE_LABEL, summarize, type OrderSummary } from '../domain/orderState';
+import { useOpenOrders } from '../hooks/data';
 import { lineAmount } from '../domain/totals';
 import { usePrintFlow } from '../hooks/usePrintFlow';
 import { elapsed, useNow } from '../lib/time';
 import { printKot } from '../printing/printService';
-import { cancelOrder, markDelivered, markNotDelivered, requestBill, voidSentItem } from '../services/orders';
+import { cancelOrder, markDelivered, markNotDelivered, requestBill, setItemDelivered, voidSentItem } from '../services/orders';
 import { useActor } from '../session';
 
 const VOID_REASONS = ['Customer changed mind', 'Wrong dish', 'Not available'];
 
-/** Bottom sheet for one order: print slip, add items, delivered, payment. */
-export default function OrderSheet({ summary, onClose }: { summary: OrderSummary | null; onClose: () => void }) {
+/** Full page for one order: serve dish by dish, print slip, add items, payment. */
+export default function OrderPage() {
+  const { orderId = '' } = useParams();
   const navigate = useNavigate();
+  const data = useOpenOrders();
+  const summary: OrderSummary | null = useMemo(() => {
+    const o = data?.orders.find((x) => x.id === orderId);
+    if (!data || !o) return null;
+    return summarize(
+      o,
+      data.items.filter((i) => i.orderId === o.id),
+      data.kots.filter((k) => k.orderId === o.id),
+      data.tables,
+      data.rooms,
+    );
+  }, [data, orderId]);
+  const onClose = () => navigate('/');
   const { message, modal } = App.useApp();
   const printFlow = usePrintFlow();
   const actor = useActor();
@@ -76,31 +91,67 @@ export default function OrderSheet({ summary, onClose }: { summary: OrderSummary
   const delivered = !!s?.order.servedAt;
 
   return (
-    <Drawer
-      open={!!s}
-      onClose={onClose}
-      placement="bottom"
-      size="auto"
-      title={
-        s && (
-          <div>
-            <div className="osheet__title">
-              {s.title} <span className="muted">{s.subtitle}</span>
-            </div>
-            <div className="osheet__sub">
-              Order #{s.order.orderNo} · {elapsed(s.order.createdAt, now)} ·{' '}
-              <span className={`osheet__stage is-${s.stage}`}>{s.stage === 'payment' ? 'Payment pending' : 'Preparing'}</span>
-            </div>
+    <div className="flow">
+      <header className="flow__head">
+        <button className="flow__back" onClick={onClose} aria-label="Back to orders">
+          <ArrowLeftOutlined />
+        </button>
+        <div className="flow__heading">
+          {s && (
+            <>
+              <div className="osheet__title">
+                {s.title} <span className="muted">{s.subtitle}</span>
+              </div>
+              <div className="osheet__sub">
+                Order #{s.order.orderNo} · {elapsed(s.order.createdAt, now)} ·{' '}
+                <span className={`osheet__stage is-${s.stage}`}>
+                  {s.stage === 'partly' ? `${s.delivered} of ${s.servable} served` : STAGE_LABEL[s.stage]}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      </header>
+      {!data && <Spin style={{ display: 'block', margin: '80px auto' }} />}
+      {data && !s && (
+        <div className="flow__body">
+          <div className="empty">
+            <div className="empty__title">This order is closed</div>
+            <Button size="large" onClick={onClose}>
+              Back to orders
+            </Button>
           </div>
-        )
-      }
-      styles={{ body: { paddingTop: 8 }, wrapper: { maxHeight: '92dvh' } }}
-    >
+        </div>
+      )}
+      <div className="flow__body opage">
       {s && (
         <>
+          {s.order.status === 'open' && s.servable > 0 && (
+            <p className="muted" style={{ margin: '0 0 4px' }}>
+              Tick each dish when it reaches the table.
+            </p>
+          )}
           <ul className="osheet__lines">
             {lines.map((i) => (
-              <li key={i.id} className={i.voided ? 'is-void' : ''}>
+              <li key={i.id} className={`${i.voided ? 'is-void' : ''}${i.deliveredAt ? ' is-served' : ''}`}>
+                {i.kotId && !i.voided && s.order.status !== 'paid' ? (
+                  <button
+                    className={`osheet__tick${i.deliveredAt ? ' is-on' : ''}`}
+                    aria-pressed={!!i.deliveredAt}
+                    aria-label={i.deliveredAt ? `${i.name} served. Tap to undo` : `Mark ${i.name} served`}
+                    onClick={async () => {
+                      try {
+                        await setItemDelivered(i.id, !i.deliveredAt);
+                      } catch (e) {
+                        err(e);
+                      }
+                    }}
+                  >
+                    <CheckOutlined />
+                  </button>
+                ) : (
+                  <span className="osheet__tick-space" />
+                )}
                 <span className="osheet__qty">{i.qty} ×</span>
                 <span className="osheet__name">
                   {i.name}
@@ -160,13 +211,13 @@ export default function OrderSheet({ summary, onClose }: { summary: OrderSummary
                 onClick={async () => {
                   try {
                     await markDelivered(s.order.id);
-                    message.success(`${s.title}: food delivered`);
+                    message.success(`${s.title}: all food served`);
                   } catch (e) {
                     err(e);
                   }
                 }}
               >
-                Food delivered
+                All food served
               </Button>
             ) : null}
             <Button
@@ -184,7 +235,7 @@ export default function OrderSheet({ summary, onClose }: { summary: OrderSummary
           <div className="osheet__links">
             {delivered && (
               <Button type="link" onClick={() => markNotDelivered(s.order.id)}>
-                Not delivered yet
+                Undo all served
               </Button>
             )}
             <Button
@@ -262,6 +313,7 @@ export default function OrderSheet({ summary, onClose }: { summary: OrderSummary
         </div>
         <Input style={{ marginTop: 10 }} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Or type a reason" maxLength={80} />
       </Modal>
-    </Drawer>
+      </div>
+    </div>
   );
 }

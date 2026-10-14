@@ -90,6 +90,7 @@ export interface OrderItem {
   qty: number;
   note?: string;
   kotId?: ID; // set once sent to the kitchen; line is then locked
+  deliveredAt?: number; // this dish was taken to the guests
   voided?: boolean; // sent line cancelled by an owner
   voidReason?: string;
   voidKotId?: ID;

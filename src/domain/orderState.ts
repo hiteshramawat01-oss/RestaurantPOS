@@ -1,7 +1,7 @@
 import type { DiningTable, Kot, Order, OrderItem, Room } from '../db/types';
 import { billableItems, itemCount, orderTotal } from './totals';
 
-export type OrderStage = 'preparing' | 'payment';
+export type OrderStage = 'preparing' | 'partly' | 'payment';
 
 export interface OrderSummary {
   order: Order;
@@ -12,13 +12,22 @@ export interface OrderSummary {
   subtitle: string; // "AC" / customer name
   total: number;
   count: number;
+  servable: number; // dishes sent to the kitchen
+  delivered: number; // of those, already taken to the guests
   unprinted: Kot[]; // kitchen slips not printed yet
 }
 
-/** Preparing until the food is marked delivered (or payment was requested). */
-export function stageOf(order: Order): OrderStage {
-  return order.servedAt || order.status === 'billing' ? 'payment' : 'preparing';
+/** Preparing → partly delivered → payment pending (all food delivered, or payment requested). */
+export function stageOf(order: Order, items: OrderItem[] = []): OrderStage {
+  if (order.servedAt || order.status === 'billing') return 'payment';
+  return items.some((i) => i.kotId && !i.voided && i.deliveredAt) ? 'partly' : 'preparing';
 }
+
+export const STAGE_LABEL: Record<OrderStage, string> = {
+  preparing: 'Preparing',
+  partly: 'Partly served',
+  payment: 'Payment pending',
+};
 
 export function summarize(order: Order, items: OrderItem[], kots: Kot[], tables: DiningTable[], rooms: Room[]): OrderSummary {
   const takeaway = order.type === 'takeaway';
@@ -28,11 +37,13 @@ export function summarize(order: Order, items: OrderItem[], kots: Kot[], tables:
     order,
     items,
     kots: [...kots].sort((a, b) => a.kotNo - b.kotNo),
-    stage: stageOf(order),
+    stage: stageOf(order, items),
     title: takeaway ? `Takeaway #${order.orderNo}` : `Table ${table?.label ?? '?'}`,
     subtitle: takeaway ? (order.customerName ?? 'Parcel') : (room?.name ?? ''),
     total: orderTotal(items),
     count: itemCount(items),
+    servable: items.filter((i) => i.kotId && !i.voided && i.qty > 0).length,
+    delivered: items.filter((i) => i.kotId && !i.voided && i.qty > 0 && i.deliveredAt).length,
     unprinted: kots.filter((k) => k.printStatus !== 'printed').sort((a, b) => a.kotNo - b.kotNo),
   };
 }

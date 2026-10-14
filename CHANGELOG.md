@@ -4,7 +4,7 @@
 
 - New, simpler app. The home screen shows every order in progress with its status, and a big New order button.
 - New order is a three-step flow: Where (AC / Non-AC table or takeaway) → Dishes → Review. Then print the kitchen slip if you want.
-- Tap an order to print the kitchen slip, add items, mark the food delivered, or collect payment. Paid orders leave the home screen.
+- Tap an order to open its page: tick each dish as it is served (cards show “2 of 4 served”), print the kitchen slip, add items, or collect payment. When every dish is served the order shows Payment pending. Paid orders leave the home screen.
 - Payment: optional discount, then Cash or UPI in one tap. Printing the bill is optional.
 - Nothing prints automatically.
 - App menu (top left) has Dishes and prices, and Printer and updates.

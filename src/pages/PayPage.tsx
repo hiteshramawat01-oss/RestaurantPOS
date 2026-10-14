@@ -144,7 +144,7 @@ export default function PayPage() {
   return (
     <div className="flow">
       <header className="flow__head">
-        <button className="flow__back" onClick={() => navigate('/')} aria-label="Back to orders">
+        <button className="flow__back" onClick={() => navigate(`/order/${orderId}`)} aria-label="Back to the order">
           <ArrowLeftOutlined />
         </button>
         <div className="flow__heading">

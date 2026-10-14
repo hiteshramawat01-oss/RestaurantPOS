@@ -449,17 +449,56 @@ async function addSeparateLine(orderId: string, m: MenuItem, qty: number, varian
   return item;
 }
 
-/** Food has been delivered to the guests; the order now waits for payment. */
+/** Dishes that count as food for the guests (sent to the kitchen, not removed). */
+function servable(items: OrderItem[]): OrderItem[] {
+  return items.filter((i) => i.kotId && !i.voided && i.qty > 0);
+}
+
+/** The order is "delivered" (waiting for payment) once every dish is delivered. */
+async function syncDelivered(orderId: string): Promise<void> {
+  const items = servable(await db.orderItems.where('orderId').equals(orderId).toArray());
+  const all = items.length > 0 && items.every((i) => i.deliveredAt);
+  const order = await db.orders.get(orderId);
+  if (!order) return;
+  if (all && !order.servedAt) {
+    const now = Date.now();
+    await db.orders.update(orderId, { servedAt: now, updatedAt: now });
+    await db.kots.where('orderId').equals(orderId).modify({ kitchenStatus: 'served', statusAt: now });
+  } else if (!all && order.servedAt) await db.orders.update(orderId, { servedAt: undefined, updatedAt: Date.now() });
+}
+
+/** Mark one dish as delivered to the guests (or undo it). */
+export async function setItemDelivered(itemId: string, delivered: boolean): Promise<void> {
+  await db.transaction('rw', db.orders, db.orderItems, db.kots, async () => {
+    const item = await db.orderItems.get(itemId);
+    if (!item) throw new PosError('NO_ITEM', 'Item not found.');
+    const order = await db.orders.get(item.orderId);
+    if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'This order is already closed.');
+    if (!item.kotId) throw new PosError('NOT_SENT', 'This dish has not been sent to the kitchen yet.');
+    await db.orderItems.update(itemId, { deliveredAt: delivered ? Date.now() : undefined });
+    await syncDelivered(item.orderId);
+  });
+}
+
+/** All food has been delivered; the order now waits for payment. */
 export async function markDelivered(orderId: string): Promise<void> {
-  await db.transaction('rw', db.orders, db.kots, async () => {
+  await db.transaction('rw', db.orders, db.orderItems, db.kots, async () => {
     const order = await db.orders.get(orderId);
     if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'This order is already closed.');
     const now = Date.now();
+    for (const i of servable(await db.orderItems.where('orderId').equals(orderId).toArray()))
+      if (!i.deliveredAt) await db.orderItems.update(i.id, { deliveredAt: now });
     await db.orders.update(orderId, { servedAt: now, updatedAt: now });
     await db.kots.where('orderId').equals(orderId).modify({ kitchenStatus: 'served', statusAt: now });
   });
 }
 
+/** Undo "all delivered" (the dishes go back to not delivered). */
 export async function markNotDelivered(orderId: string): Promise<void> {
-  await db.orders.update(orderId, { servedAt: undefined, updatedAt: Date.now() });
+  await db.transaction('rw', db.orders, db.orderItems, async () => {
+    await db.orderItems.where('orderId').equals(orderId).modify((i: OrderItem) => {
+      delete i.deliveredAt;
+    });
+    await db.orders.update(orderId, { servedAt: undefined, updatedAt: Date.now() });
+  });
 }

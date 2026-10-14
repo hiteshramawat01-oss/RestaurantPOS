@@ -10,6 +10,7 @@ import MenuPage from './pages/MenuPage';
 import HomePage from './pages/HomePage';
 import NewOrderPage from './pages/NewOrderPage';
 import PayPage from './pages/PayPage';
+import OrderPage from './pages/OrderPage';
 import SettingsPage from './pages/SettingsPage';
 import StorageError from './pages/StorageError';
 import PwaUpdater from './updates/PwaUpdater';
@@ -48,6 +49,7 @@ function Routed() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/new" element={<NewOrderPage />} />
+        <Route path="/order/:orderId" element={<OrderPage />} />
         <Route path="/order/:orderId/add" element={<NewOrderPage />} />
         <Route path="/pay/:orderId" element={<PayPage />} />
         <Route path="/menu" element={<MenuPage />} />
