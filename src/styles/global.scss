@@ -57,7 +57,14 @@
   --state-press: rgba(38, 24, 20, 0.12);
 
   --font: Roboto, 'Roboto Flex', 'Google Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --safe-b: env(safe-area-inset-bottom, 0px);
+  /* Status bar / gesture bar insets. In the Android app Capacitor injects
+     --safe-area-inset-*; browsers fall back to env(). */
+  --safe-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --appbar-h: 72px;
+  --appbar-bg: #c2410c;
+  --appbar-on: #ffffff;
+  --appbar-on-2: #ffe1d6;
   --target: 48px;
 
   /* Older names still used by a few components */
@@ -193,18 +200,34 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 64px;
-  padding: 8px 4px;
-  margin: 0 -16px 8px;
-  background: var(--md-surface);
+  box-sizing: border-box;
+  min-height: calc(var(--appbar-h) + var(--safe-t));
+  padding: calc(12px + var(--safe-t)) 8px 12px;
+  margin: 0 -16px 16px;
+  background: var(--appbar-bg);
+  color: var(--appbar-on);
+  box-shadow: var(--elev-2);
+
+  .iconbtn {
+    color: var(--appbar-on);
+
+    &:hover::before {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    &:active::before {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
 
   &__title {
     flex: 1;
     min-width: 0;
-    margin: 0 0 0 4px;
+    margin: 0 0 0 8px;
     font-size: 22px;
     line-height: 28px;
-    font-weight: 400;
+    font-weight: 500;
+    color: var(--appbar-on);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -214,7 +237,7 @@ button {
     font-size: 14px;
     line-height: 20px;
     font-weight: 500;
-    color: var(--md-primary);
+    color: var(--appbar-on-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -223,7 +246,7 @@ button {
   &__titles {
     flex: 1;
     min-width: 0;
-    margin-left: 4px;
+    margin-left: 8px;
 
     .appbar__title {
       margin: 0;
@@ -251,15 +274,17 @@ button {
   }
 
   .ant-drawer-body {
-    padding: 12px;
+    padding: 0 12px calc(12px + var(--safe-b));
   }
 
   &__headline {
-    padding: 18px 16px 12px;
-    font-size: 14px;
-    line-height: 20px;
+    margin: 0 -12px 12px;
+    padding: calc(24px + var(--safe-t)) 28px 20px;
+    background: var(--appbar-bg);
+    color: var(--appbar-on);
+    font-size: 22px;
+    line-height: 28px;
     font-weight: 500;
-    color: var(--md-on-surface-variant);
   }
 
   &__item {
@@ -865,7 +890,7 @@ button {
 
   &__sticky {
     position: sticky;
-    top: 64px;
+    top: calc(var(--appbar-h) + var(--safe-t));
     z-index: 5;
     background: var(--md-surface);
     padding: 4px 0 0;

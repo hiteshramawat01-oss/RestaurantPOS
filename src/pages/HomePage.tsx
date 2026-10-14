@@ -37,10 +37,9 @@ export default function HomePage() {
 
   return (
     <div className="home">
-      <header className="appbar appbar--center">
+      <header className="appbar">
         <AppMenu />
         <h1 className="appbar__title">{settings?.restaurant.name ?? ''}</h1>
-        <span className="iconbtn-space" />
       </header>
       {orders.length > 0 && (
         <div className="home__section">

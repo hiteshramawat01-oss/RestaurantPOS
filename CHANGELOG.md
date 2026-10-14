@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1
+
+- The top bar no longer hides under the phone's status bar: it now sits below it, is taller (72dp), and has the restaurant's orange colour behind it, with white status-bar icons.
+- Home shows the full restaurant name on the left next to the menu button.
+- The side menu has an orange heading with the restaurant name, clear of the status bar.
+- Bottom buttons keep clear of the phone's gesture bar.
+
 ## 1.5.0
 
 - New look that follows Google Material Design 3: Material colours, Roboto type, cards, and a slide-out navigation drawer.
