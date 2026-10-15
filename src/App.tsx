@@ -7,6 +7,7 @@ import { recoverInterruptedPrints } from './printing/printService';
 import { theme } from './theme';
 import AppLayout from './components/AppLayout';
 import MenuPage from './pages/MenuPage';
+import SalesPage from './pages/SalesPage';
 import HomePage from './pages/HomePage';
 import NewOrderPage from './pages/NewOrderPage';
 import PayPage from './pages/PayPage';
@@ -52,6 +53,7 @@ function Routed() {
         <Route path="/order/:orderId" element={<OrderPage />} />
         <Route path="/order/:orderId/add" element={<NewOrderPage />} />
         <Route path="/pay/:orderId" element={<PayPage />} />
+        <Route path="/sales" element={<SalesPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

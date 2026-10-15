@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- New Sales screen in the app menu: the day's total sale, Cash vs UPI (amount and number of orders), and every paid order with time, table and amount.
+- Use the arrows to see an earlier day; tap the date to jump back to today.
+- Tap a paid order to see its bill and print it again.
+- Order history stays on the phone (it is also in the backup).
+- Bill previews now shrink to fit narrow screens.
+
 ## 1.5.1
 
 - The top bar no longer hides under the phone's status bar: it now sits below it, is taller (72dp), and has the restaurant's orange colour behind it, with white status-bar icons.

@@ -1,4 +1,4 @@
-import { FileTextOutlined, HomeOutlined, MenuOutlined, SettingOutlined } from '@ant-design/icons';
+import { BarChartOutlined, FileTextOutlined, HomeOutlined, MenuOutlined, SettingOutlined } from '@ant-design/icons';
 import { Drawer } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { APP_VERSION } from '../version';
 
 const LINKS = [
   { to: '/', label: 'Orders', icon: <HomeOutlined /> },
+  { to: '/sales', label: 'Sales', icon: <BarChartOutlined /> },
   { to: '/menu', label: 'Dishes and prices', icon: <FileTextOutlined /> },
   { to: '/settings', label: 'Printer and updates', icon: <SettingOutlined /> },
 ];
