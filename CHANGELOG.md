@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0
+
+- Cancel part of a dish: tap ✕ on a line (e.g. 3 × Butter Milk), choose how many with − / +, and tap "Cancel 1 of 3". The rest stays on the order.
+- The cancelled part comes off the bill, stays on the order page marked "Cancelled", and a cancel slip for just that number is ready to print for the kitchen.
+- No reason needed to cancel a dish. Cancelling a whole order still asks why (one tap: Customer left, Wrong order, Test, or type your own).
+
 ## 1.6.0
 
 - New Sales screen in the app menu: the day's total sale, Cash vs UPI (amount and number of orders), and every paid order with time, table and amount.

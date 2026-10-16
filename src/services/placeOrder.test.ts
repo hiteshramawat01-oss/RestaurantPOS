@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/db';
 import { firstTable, menuItem, resetDb, waiter } from '../test/helpers';
 import { cancelInvoice, finalizeInvoice } from './billing';
-import { getActiveOrderForTable, markDelivered, markNotDelivered, placeOrder, requestBill, setItemDelivered } from './orders';
+import { getActiveOrderForTable, markDelivered, markNotDelivered, placeOrder, requestBill, setItemDelivered, voidSentItem } from './orders';
 import { stageOf } from '../domain/orderState';
 import { owner } from '../test/helpers';
 
@@ -126,5 +126,45 @@ describe('serving dish by dish', () => {
     await markNotDelivered(order.id);
     o = (await db.orders.get(order.id))!;
     expect(stageOf(o, await items())).toBe('preparing');
+  });
+});
+
+describe('cancelling part of a dish', () => {
+  it('cancels 1 of 3: bill drops by one, kitchen gets a slip for 1, the rest stays', async () => {
+    const t = await firstTable();
+    const naan = await menuItem('Naan');
+    const { order } = await placeOrder({ kind: 'table', tableId: t.id }, [{ menuItemId: naan.id, qty: 3 }], waiter);
+    const [line] = await db.orderItems.where('orderId').equals(order.id).toArray();
+    await setItemDelivered(line.id, true);
+
+    const kot = await voidSentItem(line.id, 'Customer changed mind', owner, 1);
+    expect(kot.kind).toBe('VOID');
+    expect(kot.lines).toEqual([{ name: 'Naan', qty: 1, note: 'VOID: Customer changed mind' }]);
+
+    const items = await db.orderItems.where('orderId').equals(order.id).toArray();
+    const kept = items.find((i) => !i.voided)!;
+    const gone = items.find((i) => i.voided)!;
+    expect(kept.qty).toBe(2);
+    expect(kept.deliveredAt).toBeDefined(); // still served
+    expect(gone.qty).toBe(1);
+    expect(gone.deliveredAt).toBeUndefined();
+    expect(gone.voidKotId).toBe(kot.id);
+
+    await requestBill(order.id);
+    const inv = await finalizeInvoice(order.id, { discountType: 'none', discountValue: 0 }, waiter);
+    expect(inv.lines).toEqual([expect.objectContaining({ name: 'Naan', qty: 2 })]);
+  });
+
+  it('cancelling the whole quantity voids the line; bad numbers are refused', async () => {
+    const t = await firstTable();
+    const naan = await menuItem('Naan');
+    const { order } = await placeOrder({ kind: 'table', tableId: t.id }, [{ menuItemId: naan.id, qty: 2 }], waiter);
+    const [line] = await db.orderItems.where('orderId').equals(order.id).toArray();
+    await expect(voidSentItem(line.id, 'x', owner, 3)).rejects.toThrow(/between 1 and 2/);
+    await expect(voidSentItem(line.id, 'x', owner, 0)).rejects.toThrow(/between 1 and 2/);
+    await voidSentItem(line.id, '', owner, 2);
+    const items = await db.orderItems.where('orderId').equals(order.id).toArray();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ qty: 2, voided: true });
   });
 });

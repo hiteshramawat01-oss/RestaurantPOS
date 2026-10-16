@@ -14,7 +14,6 @@ import { printKot } from '../printing/printService';
 import { cancelOrder, markDelivered, markNotDelivered, requestBill, setItemDelivered, voidSentItem } from '../services/orders';
 import { useActor } from '../session';
 
-const VOID_REASONS = ['Customer changed mind', 'Wrong dish', 'Not available'];
 
 /** Full page for one order: serve dish by dish, print slip, add items, payment. */
 export default function OrderPage() {
@@ -39,7 +38,7 @@ export default function OrderPage() {
   const now = useNow();
   const [busy, setBusy] = useState<string | null>(null);
   const [voidFor, setVoidFor] = useState<OrderItem | null>(null);
-  const [reason, setReason] = useState('');
+  const [voidQty, setVoidQty] = useState(1);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
@@ -151,15 +150,16 @@ export default function OrderPage() {
                   {i.name}
                   {i.note && <span className="olist__note">{i.note}</span>}
                   {!i.kotId && !i.voided && <span className="olist__note">Not sent to kitchen</span>}
+                  {i.voided && <span className="olist__note">Cancelled{i.voidReason ? ` · ${i.voidReason}` : ''}</span>}
                 </span>
                 <span className="olist__amt">{formatINR(lineAmount(i))}</span>
                 {!i.voided && i.kotId && s.order.status === 'open' ? (
                   <button
                     className="iconbtn iconbtn--sm"
-                    aria-label={`Remove ${i.name}`}
+                    aria-label={`Cancel ${i.name}`}
                     onClick={() => {
                       setVoidFor(i);
-                      setReason('');
+                      setVoidQty(1);
                     }}
                   >
                     <CloseOutlined />
@@ -250,32 +250,44 @@ export default function OrderPage() {
 
       <Modal
         open={!!voidFor}
-        title={voidFor ? `Remove ${voidFor.qty} × ${voidFor.name}?` : ''}
-        okText="Remove"
-        okButtonProps={{ danger: true, disabled: !reason.trim() }}
+        title={voidFor ? (voidFor.qty > 1 ? `Cancel ${voidFor.name}` : `Cancel 1 × ${voidFor.name}?`) : ''}
+        okText={voidFor && voidFor.qty > 1 ? `Cancel ${voidQty} of ${voidFor.qty}` : 'Cancel dish'}
+        cancelText="Keep"
+        okButtonProps={{ danger: true }}
         onCancel={() => setVoidFor(null)}
         centered
         destroyOnHidden
         onOk={async () => {
           if (!voidFor) return;
           try {
-            const k = await voidSentItem(voidFor.id, reason, actor);
+            const k = await voidSentItem(voidFor.id, '', actor, voidQty);
             setVoidFor(null);
-            message.success(`Removed. Print the cancel slip (KOT #${k.kotNo}) for the kitchen.`);
+            message.success(`Cancelled ${voidQty} × ${voidFor.name}. Print the cancel slip (KOT #${k.kotNo}) for the kitchen.`);
           } catch (e) {
             err(e);
           }
         }}
       >
-        <p className="muted">It comes off the bill and a cancel slip is ready to print for the kitchen.</p>
-        <div className="chips">
-          {VOID_REASONS.map((r) => (
-            <Button key={r} type={reason === r ? 'primary' : 'default'} onClick={() => setReason(r)}>
-              {r}
-            </Button>
-          ))}
-        </div>
-        <Input style={{ marginTop: 10 }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Or type a reason" maxLength={80} />
+        {voidFor && voidFor.qty > 1 && (
+          <div className="voidqty">
+            <div>
+              <div className="voidqty__label">How many to cancel?</div>
+              <div className="muted">
+                {voidFor.qty - voidQty} of {voidFor.qty} will stay on the order
+              </div>
+            </div>
+            <div className="stepper">
+              <button aria-label="Cancel one less" disabled={voidQty <= 1} onClick={() => setVoidQty((q) => Math.max(1, q - 1))}>
+                −
+              </button>
+              <span aria-label="Quantity to cancel">{voidQty}</span>
+              <button aria-label="Cancel one more" disabled={voidQty >= voidFor.qty} onClick={() => setVoidQty((q) => Math.min(voidFor.qty, q + 1))}>
+                +
+              </button>
+            </div>
+          </div>
+        )}
+        <p className="muted" style={{ marginBottom: 0 }}>It comes off the bill. A cancel slip is ready to print for the kitchen.</p>
       </Modal>
 
       <Modal
@@ -299,7 +311,7 @@ export default function OrderPage() {
           }
         }}
       >
-        <p className="muted">The order is removed from the screen and kept in the records as cancelled.</p>
+        <p className="muted">It is removed from the screen and kept in the records as cancelled. Why?</p>
         <div className="chips">
           {['Customer left', 'Wrong order', 'Test'].map((r) => (
             <Button key={r} type={cancelReason === r ? 'primary' : 'default'} onClick={() => setCancelReason(r)}>

@@ -246,12 +246,14 @@ export async function sendToKitchen(orderId: string, actor: Actor): Promise<Kot>
 }
 
 /**
- * Cancel a line already sent to the kitchen. Creates a VOID ticket so the
- * kitchen is told explicitly; the line stays on record, marked voided.
+ * Cancel a line already sent to the kitchen, fully or partly (e.g. 1 of 3
+ * Chaach). Creates a VOID ticket so the kitchen is told explicitly. The
+ * cancelled quantity stays on record as its own voided line; the rest of the
+ * line is kept as it was (including whether it was served).
  */
-export async function voidSentItem(itemId: string, reason: string, actor: Actor): Promise<Kot> {
+export async function voidSentItem(itemId: string, reason: string, actor: Actor, qty?: number): Promise<Kot> {
+  const why = reason.trim();
   requireOwner(actor, 'void items already sent to the kitchen');
-  if (!reason.trim()) throw new PosError('REASON_REQUIRED', 'Enter a reason for voiding.');
   return db.transaction(
     'rw',
     [db.orders, db.orderItems, db.kots, db.counters, db.diningTables, db.rooms, db.audit],
@@ -260,6 +262,8 @@ export async function voidSentItem(itemId: string, reason: string, actor: Actor)
       if (!item) throw new PosError('NO_ITEM', 'Item not found.');
       if (!item.kotId) throw new PosError('NOT_SENT', 'This item has not been sent yet; just remove it.');
       if (item.voided) throw new PosError('ALREADY_VOID', 'This item is already voided.');
+      const n = qty ?? item.qty;
+      if (!Number.isInteger(n) || n < 1 || n > item.qty) throw new PosError('BAD_QTY', `Choose between 1 and ${item.qty} to cancel.`);
       const order = await requireOpenOrder(item.orderId);
       const kot: Kot = {
         id: newId(),
@@ -268,7 +272,7 @@ export async function voidSentItem(itemId: string, reason: string, actor: Actor)
         orderNo: order.orderNo,
         ...(await tableAndRoom(order)),
         kind: 'VOID',
-        lines: [{ name: item.name, qty: item.qty, note: `VOID: ${reason.trim()}` }],
+        lines: [{ name: item.name, qty: n, note: why ? `VOID: ${why}` : 'CANCELLED' }],
         staffName: actor.name,
         createdAt: Date.now(),
         printStatus: 'pending',
@@ -277,8 +281,17 @@ export async function voidSentItem(itemId: string, reason: string, actor: Actor)
         statusAt: Date.now(),
       };
       await db.kots.add(kot);
-      await db.orderItems.update(itemId, { voided: true, voidReason: reason.trim(), voidKotId: kot.id });
-      await addAudit('VOID_ITEM', `Order #${order.orderNo}: ${item.qty} x ${item.name} (${reason.trim()})`, actor);
+      const voidInfo = { voided: true, ...(why ? { voidReason: why } : {}), voidKotId: kot.id };
+      if (n === item.qty) {
+        await db.orderItems.update(itemId, voidInfo);
+      } else {
+        // Partial: keep the rest on the original line, record the cancelled part separately.
+        await db.orderItems.update(itemId, { qty: item.qty - n });
+        const { deliveredAt: _served, ...rest } = item;
+        await db.orderItems.add({ ...rest, id: newId(), qty: n, createdAt: item.createdAt + 0.5, ...voidInfo });
+      }
+      await addAudit('VOID_ITEM', `Order #${order.orderNo}: ${n} of ${item.qty} x ${item.name}${why ? ` (${why})` : ''}`, actor);
+      await syncDelivered(order.id);
       await touch(order.id);
       return kot;
     },
@@ -334,7 +347,8 @@ export async function reopenOrder(orderId: string, actor: Actor): Promise<void> 
 
 export async function cancelOrder(orderId: string, reason: string, actor: Actor): Promise<void> {
   requireOwner(actor, 'cancel orders');
-  if (!reason.trim()) throw new PosError('REASON_REQUIRED', 'Enter a reason for cancelling.');
+  const why = reason.trim();
+  if (!why) throw new PosError('REASON_REQUIRED', 'Enter a reason for cancelling.');
   await db.transaction('rw', db.orders, db.invoices, db.audit, async () => {
     const order = await db.orders.get(orderId);
     if (!isActive(order)) throw new PosError('ORDER_CLOSED', 'Only active orders can be cancelled.');
@@ -344,18 +358,18 @@ export async function cancelOrder(orderId: string, reason: string, actor: Actor)
         await db.invoices.update(inv.id, {
           status: 'cancelled',
           cancelledAt: Date.now(),
-          cancelReason: `Order cancelled: ${reason.trim()}`,
+          cancelReason: why ? `Order cancelled: ${why}` : 'Order cancelled',
           cancelledBy: actor.name,
         });
     }
     await db.orders.update(orderId, {
       status: 'cancelled',
-      cancelReason: reason.trim(),
+      ...(why ? { cancelReason: why } : {}),
       cancelledBy: actor.name,
       closedAt: Date.now(),
       updatedAt: Date.now(),
     });
-    await addAudit('CANCEL_ORDER', `Order #${order.orderNo}: ${reason.trim()}`, actor);
+    await addAudit('CANCEL_ORDER', `Order #${order.orderNo}${why ? `: ${why}` : ''}`, actor);
   });
 }
 

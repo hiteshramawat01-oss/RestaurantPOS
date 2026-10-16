@@ -1320,8 +1320,16 @@ button {
     border-bottom: 1px solid var(--md-outline-variant);
 
     &.is-void {
-      opacity: 0.38;
-      text-decoration: line-through;
+      opacity: 0.6;
+
+      .olist__qty,
+      .olist__amt {
+        text-decoration: line-through;
+      }
+
+      .olist__note {
+        color: var(--md-error);
+      }
     }
 
     &.is-served .olist__name,
@@ -1782,4 +1790,26 @@ button {
     background: #dae2ff;
     color: #001848;
   }
+}
+
+/* Cancel part of a dish */
+.voidqty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 12px 12px 16px;
+  border-radius: var(--shape-m);
+  background: var(--md-surface-container-low);
+
+  &__label {
+    font-size: 16px;
+    font-weight: 500;
+  }
+}
+
+.stepper button:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
