@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.1
+
+- Simpler Printer and updates page for the one Bluetooth printer: it shows BillQuick-Go with a big Print test page button. Wi-Fi search, IP address, paper width and slip name settings are gone (paper is fixed at 58 mm).
+- "Change" shows the paired printers and pairing steps, if ever needed. With a single paired printer, it is picked automatically.
+
 ## 1.8.0
 
 - Bluetooth printers: in Printer and updates choose Bluetooth, then tap your paired printer (e.g. Helett BillQuick-Go). Kitchen slips, bills and the test page print over Bluetooth.

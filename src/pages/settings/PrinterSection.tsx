@@ -1,93 +1,61 @@
-import { CheckCircleFilled, PrinterOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Input, Segmented } from 'antd';
+import { CheckCircleFilled, PrinterOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, App, Button } from 'antd';
 import { useEffect, useState } from 'react';
 import { db } from '../../db/db';
-import type { AppSettings, PaperWidth, PrinterSettings } from '../../db/types';
+import type { AppSettings, PrinterSettings } from '../../db/types';
 import { nativePrintingAvailable, type BtDevice } from '../../printing/nativePrinter';
-import { checkPrinterStatus, findPrinters, isBluetooth, openBluetoothSettings, pairedBluetoothPrinters, testPrint, type FoundPrinter } from '../../printing/printService';
-
-const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+import { isBluetooth, openBluetoothSettings, pairedBluetoothPrinters, testPrint } from '../../printing/printService';
 
 /**
- * Printer settings, kept to the essentials: find the printer on the phone's
- * Wi-Fi and tap it, choose the paper width, print a test page. Everything
- * saves as soon as it changes.
+ * The restaurant has one printer: a 58 mm Bluetooth bill printer
+ * (Helett BillQuick-Go). So this is just: which printer, and a test print.
  */
 export default function PrinterSection({ settings }: { settings: AppSettings }) {
   const { message } = App.useApp();
   const native = nativePrintingAvailable();
   const printer = settings.printer;
+  const chosen = isBluetooth(printer) && !!printer.btAddress;
 
-  const [searching, setSearching] = useState(false);
-  const [found, setFound] = useState<FoundPrinter[] | null>(null);
-  const [network, setNetwork] = useState('');
-  const [searchError, setSearchError] = useState('');
-  const [manual, setManual] = useState(false);
-  const [ip, setIp] = useState(printer.host);
+  const [picking, setPicking] = useState(false);
+  const [list, setList] = useState<BtDevice[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [listError, setListError] = useState('');
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [name, setName] = useState(settings.restaurant.name);
-  const bt = isBluetooth(printer);
-  const [btList, setBtList] = useState<BtDevice[] | null>(null);
-  const [btLoading, setBtLoading] = useState(false);
-  const [btError, setBtError] = useState('');
+
+  const showList = native && (!chosen || picking);
 
   const save = (patch: Partial<PrinterSettings>) =>
     db.settings.update('app', { printer: { ...printer, ...patch, method: native ? 'native' : 'browser' } });
 
-  const search = async () => {
-    setSearching(true);
-    setSearchError('');
+  const choose = async (d: BtDevice) => {
+    await save({ connection: 'bluetooth', btAddress: d.address, btName: d.name, paperWidth: 58 });
+    setPicking(false);
     setStatus(null);
+    message.success(`${d.name} selected`);
+  };
+
+  const load = async () => {
+    setLoading(true);
+    setListError('');
     try {
-      const r = await findPrinters(printer.port || 9100);
-      setFound(r.printers);
-      setNetwork(r.network);
-      // Only one printer on the network: choose it straight away.
-      if (r.printers.length === 1 && r.printers[0].host !== printer.host) {
-        await save({ host: r.printers[0].host, port: r.printers[0].port });
-        message.success(`Printer ${r.printers[0].host} selected`);
-      }
+      const devices = await pairedBluetoothPrinters();
+      setList(devices);
+      // Only one printer paired: use it straight away.
+      const printers = devices.filter((d) => d.printer);
+      if (!chosen && printers.length === 1) await choose(printers[0]);
     } catch (e) {
-      setFound(null);
-      setSearchError(e instanceof Error ? e.message : String(e));
+      setList(null);
+      setListError(e instanceof Error ? e.message : String(e));
     } finally {
-      setSearching(false);
+      setLoading(false);
     }
   };
 
-  const choose = async (p: FoundPrinter) => {
-    await save({ host: p.host, port: p.port });
-    setStatus(null);
-    message.success(`Printer ${p.host} selected`);
-  };
-
-  const loadPaired = async () => {
-    setBtLoading(true);
-    setBtError('');
-    try {
-      setBtList(await pairedBluetoothPrinters());
-    } catch (e) {
-      setBtList(null);
-      setBtError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBtLoading(false);
-    }
-  };
-
-  // Show the paired list straight away on the Bluetooth tab.
   useEffect(() => {
-    if (native && bt && btList === null && !btLoading && !btError) void loadPaired();
+    if (showList && list === null && !loading && !listError) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [native, bt]);
-
-  const chooseBt = async (d: BtDevice) => {
-    // Portable Bluetooth bill printers are almost always 58 mm.
-    const paper: PaperWidth = printer.btAddress ? printer.paperWidth : 58;
-    await save({ connection: 'bluetooth', btAddress: d.address, btName: d.name, paperWidth: paper });
-    setStatus(null);
-    message.success(`${d.name} selected${paper !== printer.paperWidth ? ' · paper set to 58 mm' : ''}`);
-  };
+  }, [showList]);
 
   const runTest = async () => {
     setTesting(true);
@@ -101,11 +69,6 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
     }
   };
 
-  const check = async () => {
-    const s = await checkPrinterStatus(settings.printer);
-    setStatus({ ok: 'reachable' in s ? !!s.reachable && !(s.problems?.length) : false, text: s.message });
-  };
-
   return (
     <div className="psettings">
       {!native && (
@@ -113,68 +76,55 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Open the installed Android app to connect to the Wi-Fi printer."
+          message="The Bluetooth printer works in the installed Android app."
           description="In a web browser, slips print through the phone's print dialog."
         />
       )}
 
       {native && (
-        <div className="psettings__field" style={{ marginTop: 0 }}>
-          <div className="psettings__label">How is the printer connected?</div>
-          <Segmented
-            size="large"
-            block
-            value={bt ? 'bluetooth' : 'wifi'}
-            onChange={(v) => {
-              setStatus(null);
-              void save({ connection: v as 'wifi' | 'bluetooth' });
-            }}
-            options={[
-              { label: 'Bluetooth', value: 'bluetooth' },
-              { label: 'Wi-Fi', value: 'wifi' },
-            ]}
-          />
+        <div className="psettings__current" style={{ marginTop: 0 }}>
+          <PrinterOutlined className="psettings__icon" />
+          <div className="psettings__what">
+            <div className="psettings__value">{chosen ? printer.btName : 'No printer chosen'}</div>
+            <div className="psettings__label">{chosen ? 'Bluetooth · 58 mm' : 'Tap your printer below'}</div>
+          </div>
+          {chosen && !picking && (
+            <Button type="text" onClick={() => setPicking(true)}>
+              Change
+            </Button>
+          )}
         </div>
       )}
 
-      {native && bt && (
+      {showList && (
         <>
-          <div className="psettings__current">
-            <PrinterOutlined className="psettings__icon" />
-            <div className="psettings__what">
-              <div className="psettings__label">Selected printer</div>
-              <div className="psettings__value">{printer.btName || 'Not chosen yet'}</div>
-            </div>
-            {printer.btAddress && <Button onClick={check}>Check</Button>}
-          </div>
-
           <div className="psettings__head">
             <span>Paired with this phone</span>
-            <Button type="text" icon={<ReloadOutlined />} loading={btLoading} onClick={loadPaired} aria-label="Refresh list">
+            <Button type="text" icon={<ReloadOutlined />} loading={loading} onClick={load}>
               Refresh
             </Button>
           </div>
 
-          {btError && <Alert style={{ marginTop: 4 }} type="error" showIcon message={btError} />}
+          {listError && <Alert style={{ marginBottom: 8 }} type="error" showIcon message={listError} />}
 
-          {btList && (
+          {list && (
             <div className="rowlist">
-              {btList.length === 0 ? (
+              {list.length === 0 ? (
                 <div className="rowlist__row">
                   <div className="rowlist__main">
-                    <div className="rowlist__title">No paired devices yet</div>
+                    <div className="rowlist__title">Nothing paired yet</div>
                     <div className="rowlist__sub">Pair the printer first (see below).</div>
                   </div>
                 </div>
               ) : (
-                btList.map((d) => {
-                  const selected = d.address === printer.btAddress;
+                list.map((d) => {
+                  const selected = chosen && d.address === printer.btAddress;
                   return (
-                    <button key={d.address} className="rowlist__row is-button" onClick={() => chooseBt(d)} aria-pressed={selected}>
+                    <button key={d.address} className="rowlist__row is-button" onClick={() => choose(d)} aria-pressed={selected}>
                       <PrinterOutlined style={{ fontSize: 20, opacity: d.printer ? 1 : 0.4 }} />
                       <div className="rowlist__main">
                         <div className="rowlist__title">{d.name}</div>
-                        <div className="rowlist__sub">{d.printer ? 'Printer' : 'Other device'} · {d.address}</div>
+                        <div className="rowlist__sub">{d.printer ? 'Printer' : 'Other device'}</div>
                       </div>
                       {selected ? (
                         <CheckCircleFilled style={{ fontSize: 22, color: 'var(--free)' }} aria-label="Selected" />
@@ -192,7 +142,7 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
             <div className="psettings__help-title">Printer not in the list?</div>
             <ol>
               <li>Switch the printer on.</li>
-              <li>Open Bluetooth settings, tap the printer to pair it. If it asks for a PIN, try 0000 or 1234.</li>
+              <li>Open Bluetooth settings and tap BillQuick-Go to pair. PIN: 0000.</li>
               <li>Come back here and tap Refresh.</li>
             </ol>
             <Button size="large" block icon={<SettingOutlined />} onClick={() => void openBluetoothSettings()}>
@@ -202,126 +152,16 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
         </>
       )}
 
-      {native && !bt && (
-        <>
-          <div className="psettings__current">
-            <PrinterOutlined className="psettings__icon" />
-            <div className="psettings__what">
-              <div className="psettings__label">Selected printer</div>
-              <div className="psettings__value">{printer.host || 'Not chosen yet'}</div>
-            </div>
-            {printer.host && <Button onClick={check}>Check</Button>}
-          </div>
-
-          <Button
-            type="primary"
-            size="large"
-            block
-            icon={<SearchOutlined />}
-            loading={searching}
-            onClick={search}
-            style={{ marginTop: 12 }}
-          >
-            {searching ? 'Searching the Wi-Fi…' : 'Find printers'}
-          </Button>
-          <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            The phone and the printer must be on the same Wi-Fi. Searching takes a few seconds.
-          </div>
-
-          {searchError && <Alert style={{ marginTop: 12 }} type="error" showIcon message={searchError} />}
-
-          {found && (
-            <div className="rowlist" style={{ marginTop: 12 }}>
-              {found.length === 0 ? (
-                <div className="rowlist__row">
-                  <div className="rowlist__main">
-                    <div className="rowlist__title">No printer found on {network}</div>
-                    <div className="rowlist__sub">
-                      Check the printer is on and joined to this Wi-Fi, then search again, or enter its IP address below.
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                found.map((p) => {
-                  const selected = p.host === printer.host;
-                  return (
-                    <button key={p.host} className="rowlist__row is-button" onClick={() => choose(p)} aria-pressed={selected}>
-                      <PrinterOutlined style={{ fontSize: 20 }} />
-                      <div className="rowlist__main">
-                        <div className="rowlist__title">{p.host}</div>
-                        <div className="rowlist__sub">Network printer · port {p.port}</div>
-                      </div>
-                      {selected ? (
-                        <CheckCircleFilled style={{ fontSize: 22, color: 'var(--free)' }} aria-label="Selected" />
-                      ) : (
-                        <span style={{ color: 'var(--indigo)', fontWeight: 700 }}>Use</span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          )}
-
-          {!manual ? (
-            <Button type="link" style={{ paddingLeft: 0, marginTop: 4 }} onClick={() => setManual(true)}>
-              Enter IP address yourself
-            </Button>
-          ) : (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <Input
-                size="large"
-                value={ip}
-                onChange={(e) => setIp(e.target.value.trim())}
-                placeholder="192.168.1.50"
-                inputMode="decimal"
-                status={ip && !IPV4.test(ip) ? 'error' : undefined}
-              />
-              <Button
-                size="large"
-                disabled={!IPV4.test(ip)}
-                onClick={async () => {
-                  await save({ host: ip });
-                  setManual(false);
-                  message.success(`Printer ${ip} selected`);
-                }}
-              >
-                Use
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="psettings__field">
-        <div className="psettings__label">Paper width</div>
-        <Segmented
-          size="large"
-          value={printer.paperWidth}
-          onChange={(v) => save({ paperWidth: v as PaperWidth })}
-          options={[
-            { label: '80 mm', value: 80 },
-            { label: '58 mm', value: 58 },
-          ]}
-        />
-      </div>
-
-      <div className="psettings__field">
-        <div className="psettings__label">Name at the top of slips and bills</div>
-        <Input
-          size="large"
-          value={name}
-          maxLength={32}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => {
-            const n = name.trim() || 'Restaurant';
-            setName(n);
-            if (n !== settings.restaurant.name) void db.settings.update('app', { restaurant: { ...settings.restaurant, name: n } });
-          }}
-        />
-      </div>
-
-      <Button size="large" block icon={<PrinterOutlined />} loading={testing} onClick={runTest} disabled={native && (bt ? !printer.btAddress : !printer.host)} style={{ marginTop: 20 }}>
+      <Button
+        type={chosen || !native ? 'primary' : 'default'}
+        size="large"
+        block
+        icon={<PrinterOutlined />}
+        loading={testing}
+        onClick={runTest}
+        disabled={native && !chosen}
+        style={{ marginTop: 16 }}
+      >
         Print test page
       </Button>
       {status && <Alert style={{ marginTop: 12 }} type={status.ok ? 'success' : 'warning'} showIcon message={status.text} />}
