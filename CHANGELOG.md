@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0
+
+- Bluetooth printers: in Printer and updates choose Bluetooth, then tap your paired printer (e.g. Helett BillQuick-Go). Kitchen slips, bills and the test page print over Bluetooth.
+- "Open Bluetooth settings" button and short steps to pair a new printer. Choosing a Bluetooth printer sets the paper to 58 mm.
+- Wi-Fi printers work as before.
+- Needs the new APK (the app's Android part changed); install it over the old one, nothing is lost. Android asks once to allow "Nearby devices".
+
 ## 1.7.0
 
 - Cancel part of a dish: tap ✕ on a line (e.g. 3 × Butter Milk), choose how many with − / +, and tap "Cancel 1 of 3". The rest stays on the order.

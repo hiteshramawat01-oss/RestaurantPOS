@@ -21,7 +21,10 @@ async function getSettings(): Promise<AppSettings> {
   return s;
 }
 
+export const isBluetooth = (p: PrinterSettings) => p.connection === 'bluetooth';
+
 export function describeMethod(p: PrinterSettings): string {
+  if (p.method === 'native' && isBluetooth(p)) return p.btName ? `Bluetooth (${p.btName})` : 'Bluetooth (no printer chosen)';
   if (p.method === 'native') return p.host ? `Direct Wi-Fi (${p.host}:${p.port})` : 'Direct Wi-Fi (no IP set)';
   return 'System print dialog';
 }
@@ -29,6 +32,7 @@ export function describeMethod(p: PrinterSettings): string {
 /** Human-friendly explanations for common socket errors. */
 export function explainPrintError(raw: string, p: PrinterSettings): string {
   const m = raw.toLowerCase();
+  if (isBluetooth(p)) return raw; // the app already gives a plain Bluetooth message
   if (m.includes('timed out') || m.includes('timeout'))
     return `Printer at ${p.host}:${p.port} did not respond. Check it is on, has paper, and is on the same Wi-Fi.`;
   if (m.includes('refused')) return `Printer refused the connection on port ${p.port}. Check the port (usually 9100).`;
@@ -61,7 +65,9 @@ export async function sendToPrinter(
         method: 'native',
         error: 'Direct Wi-Fi printing only works in the installed Android app (APK). Switch the printer method in Settings or use the APK.',
       };
-    if (!printer.host) return { status: 'failed', method: 'native', error: 'No printer chosen yet. Go to Settings → Printer and tap “Find printers”.' };
+    const bt = isBluetooth(printer);
+    if (bt ? !printer.btAddress : !printer.host)
+      return { status: 'failed', method: 'native', error: 'No printer chosen yet. Go to Printer and updates and choose your printer.' };
     try {
       const bytes = pages.map((p) => encodeEscPos(p, cols));
       const total = new Uint8Array(bytes.reduce((n, b) => n + b.length, 0));
@@ -70,7 +76,8 @@ export async function sendToPrinter(
         total.set(b, off);
         off += b.length;
       }
-      await EscPosPrinter.print({ host: printer.host, port: printer.port || 9100, data: toBase64(total), timeoutMs: 5000 });
+      if (bt) await EscPosPrinter.btPrint({ address: printer.btAddress!, data: toBase64(total) });
+      else await EscPosPrinter.print({ host: printer.host, port: printer.port || 9100, data: toBase64(total), timeoutMs: 5000 });
       return { status: 'printed', method: 'native' };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -195,6 +202,16 @@ export interface FoundPrinter {
   port: number;
 }
 
+/** Bluetooth devices paired with the phone (Android app only), printers first. */
+export async function pairedBluetoothPrinters() {
+  if (!nativePrintingAvailable()) throw new Error('Bluetooth printers work in the Android app only.');
+  return (await EscPosPrinter.btPaired()).devices;
+}
+
+export async function openBluetoothSettings() {
+  await EscPosPrinter.openBluetoothSettings();
+}
+
 /** Search the phone's Wi-Fi network for printers (Android app only). */
 export async function findPrinters(port = 9100): Promise<{ network: string; printers: FoundPrinter[] }> {
   if (!nativePrintingAvailable()) throw new Error('Searching for printers works in the Android app only.');
@@ -206,6 +223,17 @@ export async function checkPrinterStatus(configured: PrinterSettings) {
   const printer = effectivePrinter(configured);
   if (printer.method !== 'native' || !nativePrintingAvailable())
     return { supported: false as const, message: 'Live printer status is only available with direct Wi-Fi printing in the Android app.' };
+  if (isBluetooth(printer)) {
+    if (!printer.btAddress) return { supported: true as const, reachable: false, message: 'No Bluetooth printer chosen yet.' };
+    try {
+      const r = await EscPosPrinter.btCheck({ address: printer.btAddress });
+      return r.reachable
+        ? { supported: true as const, reachable: true, message: `Connected to ${printer.btName ?? 'the printer'}. It is ready.`, problems: [] as string[] }
+        : { supported: true as const, reachable: false, message: r.error ?? 'Could not connect.' };
+    } catch (e) {
+      return { supported: true as const, reachable: false, message: e instanceof Error ? e.message : String(e) };
+    }
+  }
   if (!printer.host) return { supported: true as const, reachable: false, message: 'Printer IP address is not set.' };
   try {
     const s = await EscPosPrinter.status({ host: printer.host, port: printer.port || 9100, timeoutMs: 3000 });

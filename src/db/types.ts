@@ -226,10 +226,17 @@ export interface RestaurantProfile {
 export type PrinterMethod = 'native' | 'browser';
 export type PaperWidth = 58 | 80;
 
+export type PrinterConnection = 'wifi' | 'bluetooth';
+
 export interface PrinterSettings {
   method: PrinterMethod;
+  /** How the Android app reaches the printer. Missing means Wi-Fi (older settings). */
+  connection?: PrinterConnection;
   host: string;
   port: number;
+  /** Paired Bluetooth printer (MAC address and name), when connection is 'bluetooth'. */
+  btAddress?: string;
+  btName?: string;
   paperWidth: PaperWidth;
   autoPrintKot: boolean;
   copiesKot: number;

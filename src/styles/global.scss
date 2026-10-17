@@ -519,6 +519,12 @@ button {
   .anticon {
     color: var(--md-inverse-primary) !important;
   }
+
+  /* AntD colours the text span itself; keep it light on the dark snackbar. */
+  span,
+  .ant-message-custom-content {
+    color: var(--md-inverse-on-surface, #ffede8) !important;
+  }
 }
 
 /* ---------- Dialogs ---------- */
@@ -1812,4 +1818,38 @@ button {
 .stepper button:disabled {
   opacity: 0.38;
   cursor: default;
+}
+
+/* Bluetooth printer list */
+.psettings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+}
+
+.psettings__help {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--shape-m);
+  background: var(--md-surface-container-low);
+
+  &-title {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  ol {
+    margin: 8px 0 12px;
+    padding-left: 20px;
+    color: var(--md-on-surface-variant);
+    line-height: 1.6;
+  }
+}
+
+.psettings__current {
+  margin-top: 16px;
 }

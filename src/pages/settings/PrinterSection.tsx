@@ -1,10 +1,10 @@
-import { CheckCircleFilled, PrinterOutlined, SearchOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, PrinterOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, App, Button, Input, Segmented } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../../db/db';
 import type { AppSettings, PaperWidth, PrinterSettings } from '../../db/types';
-import { nativePrintingAvailable } from '../../printing/nativePrinter';
-import { checkPrinterStatus, findPrinters, testPrint, type FoundPrinter } from '../../printing/printService';
+import { nativePrintingAvailable, type BtDevice } from '../../printing/nativePrinter';
+import { checkPrinterStatus, findPrinters, isBluetooth, openBluetoothSettings, pairedBluetoothPrinters, testPrint, type FoundPrinter } from '../../printing/printService';
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
@@ -27,6 +27,10 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [name, setName] = useState(settings.restaurant.name);
+  const bt = isBluetooth(printer);
+  const [btList, setBtList] = useState<BtDevice[] | null>(null);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btError, setBtError] = useState('');
 
   const save = (patch: Partial<PrinterSettings>) =>
     db.settings.update('app', { printer: { ...printer, ...patch, method: native ? 'native' : 'browser' } });
@@ -56,6 +60,33 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
     await save({ host: p.host, port: p.port });
     setStatus(null);
     message.success(`Printer ${p.host} selected`);
+  };
+
+  const loadPaired = async () => {
+    setBtLoading(true);
+    setBtError('');
+    try {
+      setBtList(await pairedBluetoothPrinters());
+    } catch (e) {
+      setBtList(null);
+      setBtError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBtLoading(false);
+    }
+  };
+
+  // Show the paired list straight away on the Bluetooth tab.
+  useEffect(() => {
+    if (native && bt && btList === null && !btLoading && !btError) void loadPaired();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [native, bt]);
+
+  const chooseBt = async (d: BtDevice) => {
+    // Portable Bluetooth bill printers are almost always 58 mm.
+    const paper: PaperWidth = printer.btAddress ? printer.paperWidth : 58;
+    await save({ connection: 'bluetooth', btAddress: d.address, btName: d.name, paperWidth: paper });
+    setStatus(null);
+    message.success(`${d.name} selected${paper !== printer.paperWidth ? ' · paper set to 58 mm' : ''}`);
   };
 
   const runTest = async () => {
@@ -88,6 +119,90 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
       )}
 
       {native && (
+        <div className="psettings__field" style={{ marginTop: 0 }}>
+          <div className="psettings__label">How is the printer connected?</div>
+          <Segmented
+            size="large"
+            block
+            value={bt ? 'bluetooth' : 'wifi'}
+            onChange={(v) => {
+              setStatus(null);
+              void save({ connection: v as 'wifi' | 'bluetooth' });
+            }}
+            options={[
+              { label: 'Bluetooth', value: 'bluetooth' },
+              { label: 'Wi-Fi', value: 'wifi' },
+            ]}
+          />
+        </div>
+      )}
+
+      {native && bt && (
+        <>
+          <div className="psettings__current">
+            <PrinterOutlined className="psettings__icon" />
+            <div className="psettings__what">
+              <div className="psettings__label">Selected printer</div>
+              <div className="psettings__value">{printer.btName || 'Not chosen yet'}</div>
+            </div>
+            {printer.btAddress && <Button onClick={check}>Check</Button>}
+          </div>
+
+          <div className="psettings__head">
+            <span>Paired with this phone</span>
+            <Button type="text" icon={<ReloadOutlined />} loading={btLoading} onClick={loadPaired} aria-label="Refresh list">
+              Refresh
+            </Button>
+          </div>
+
+          {btError && <Alert style={{ marginTop: 4 }} type="error" showIcon message={btError} />}
+
+          {btList && (
+            <div className="rowlist">
+              {btList.length === 0 ? (
+                <div className="rowlist__row">
+                  <div className="rowlist__main">
+                    <div className="rowlist__title">No paired devices yet</div>
+                    <div className="rowlist__sub">Pair the printer first (see below).</div>
+                  </div>
+                </div>
+              ) : (
+                btList.map((d) => {
+                  const selected = d.address === printer.btAddress;
+                  return (
+                    <button key={d.address} className="rowlist__row is-button" onClick={() => chooseBt(d)} aria-pressed={selected}>
+                      <PrinterOutlined style={{ fontSize: 20, opacity: d.printer ? 1 : 0.4 }} />
+                      <div className="rowlist__main">
+                        <div className="rowlist__title">{d.name}</div>
+                        <div className="rowlist__sub">{d.printer ? 'Printer' : 'Other device'} · {d.address}</div>
+                      </div>
+                      {selected ? (
+                        <CheckCircleFilled style={{ fontSize: 22, color: 'var(--free)' }} aria-label="Selected" />
+                      ) : (
+                        <span style={{ color: 'var(--md-primary)', fontWeight: 500 }}>Use</span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          <div className="psettings__help">
+            <div className="psettings__help-title">Printer not in the list?</div>
+            <ol>
+              <li>Switch the printer on.</li>
+              <li>Open Bluetooth settings, tap the printer to pair it. If it asks for a PIN, try 0000 or 1234.</li>
+              <li>Come back here and tap Refresh.</li>
+            </ol>
+            <Button size="large" block icon={<SettingOutlined />} onClick={() => void openBluetoothSettings()}>
+              Open Bluetooth settings
+            </Button>
+          </div>
+        </>
+      )}
+
+      {native && !bt && (
         <>
           <div className="psettings__current">
             <PrinterOutlined className="psettings__icon" />
@@ -206,7 +321,7 @@ export default function PrinterSection({ settings }: { settings: AppSettings }) 
         />
       </div>
 
-      <Button size="large" block icon={<PrinterOutlined />} loading={testing} onClick={runTest} disabled={native && !printer.host} style={{ marginTop: 20 }}>
+      <Button size="large" block icon={<PrinterOutlined />} loading={testing} onClick={runTest} disabled={native && (bt ? !printer.btAddress : !printer.host)} style={{ marginTop: 20 }}>
         Print test page
       </Button>
       {status && <Alert style={{ marginTop: 12 }} type={status.ok ? 'success' : 'warning'} showIcon message={status.text} />}

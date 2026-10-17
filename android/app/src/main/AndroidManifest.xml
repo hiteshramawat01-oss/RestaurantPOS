@@ -41,4 +41,10 @@
          If targetSdk is raised to 37+, add android.permission.ACCESS_LOCAL_NETWORK
          and request it at runtime (Android local network protection). -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Bluetooth receipt printers (classic SPP). Android 12+ asks for "Nearby devices". -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 </manifest>
