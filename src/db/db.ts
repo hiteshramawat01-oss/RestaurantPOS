@@ -51,7 +51,7 @@ export const SCHEMA_V2 = {
   orders: 'id, &orderNo, tableId, status, createdAt, closedAt',
 };
 
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 export class PosDB extends Dexie {
   rooms!: Table<Room, string>;
@@ -173,6 +173,18 @@ export class PosDB extends Dexie {
           .toCollection()
           .modify((s: AppSettings) => {
             if (s.printer) s.printer.autoPrintKot = false;
+          });
+      });
+
+    // v6: brand line under the restaurant name.
+    this.version(6)
+      .stores(SCHEMA_V2)
+      .upgrade(async (tx) => {
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((s: AppSettings) => {
+            if (s.restaurant && !s.restaurant.tagline) s.restaurant.tagline = 'By R9 Roadiz Since 2012';
           });
       });
 

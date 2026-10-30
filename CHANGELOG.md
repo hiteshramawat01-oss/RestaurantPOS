@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+
+- Brand line "By R9 Roadiz Since 2012" under Mewari Makkhan Dhaba: on the home screen header, in the side menu, and on printed bills.
+
 ## 1.8.1
 
 - Simpler Printer and updates page for the one Bluetooth printer: it shows BillQuick-Go with a big Print test page button. Wi-Fi search, IP address, paper width and slip name settings are gone (paper is fixed at 58 mm).

@@ -1853,3 +1853,25 @@ button {
 .psettings__current {
   margin-top: 16px;
 }
+
+/* Brand line under the restaurant name (home header and side menu) */
+.appbar__brandline {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--appbar-on-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  b {
+    font-weight: 700;
+    color: var(--appbar-on);
+  }
+}
+
+.navdrawer__headline .appbar__brandline {
+  margin-top: 4px;
+}

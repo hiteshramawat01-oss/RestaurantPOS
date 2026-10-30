@@ -52,6 +52,20 @@ describe('database', () => {
     await v2.delete();
   });
 
+  it('adds the brand line to the restaurant name on update (v5 → v6)', async () => {
+    const name = 'tagline-test';
+    const v5 = new Dexie(name);
+    v5.version(5).stores(SCHEMA_V2);
+    await v5.open();
+    await v5.table('settings').add({ key: 'app', restaurant: { name: 'Mewari Makkhan Dhaba', address: '', phone: '', gstin: '', footer: '' } });
+    v5.close();
+    const v6 = new PosDB(name);
+    await v6.open();
+    expect((await v6.settings.get('app'))?.restaurant.tagline).toBe('By R9 Roadiz Since 2012');
+    v6.close();
+    await v6.delete();
+  });
+
   it('seeds the restaurant layout: AC tables 1–5 and Non-AC tables 1–8', async () => {
     const d = new PosDB('layout-test');
     await d.open();

@@ -217,6 +217,8 @@ export interface TaxRate {
 
 export interface RestaurantProfile {
   name: string;
+  /** Second line under the name, e.g. "By R9 Roadiz Since 2012". */
+  tagline?: string;
   address: string;
   phone: string;
   gstin: string;

@@ -133,6 +133,7 @@ export function invoiceBlocks(inv: Invoice, opts: { reprint?: boolean } = {}): B
   const r = inv.restaurant;
   const b: Block[] = [];
   b.push({ t: 'text', text: r.name, align: 'center', bold: true, size: 'big' });
+  if (r.tagline) b.push({ t: 'text', text: r.tagline, align: 'center', bold: true });
   if (r.address) b.push({ t: 'text', text: r.address, align: 'center' });
   if (r.phone) b.push({ t: 'text', text: `Ph: ${r.phone}`, align: 'center' });
   if (r.gstin) b.push({ t: 'text', text: `GSTIN: ${r.gstin}`, align: 'center' });

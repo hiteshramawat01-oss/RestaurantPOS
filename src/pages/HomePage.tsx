@@ -2,7 +2,7 @@ import { PlusOutlined, PrinterOutlined } from '@ant-design/icons';
 import { Spin } from 'antd';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppMenu from '../components/AppMenu';
+import AppMenu, { brandLine } from '../components/AppMenu';
 import { formatPrice } from '../domain/money';
 import { hasFood, STAGE_LABEL, summarize, type OrderSummary } from '../domain/orderState';
 import { useOpenOrders, useSettings } from '../hooks/data';
@@ -39,7 +39,10 @@ export default function HomePage() {
     <div className="home">
       <header className="appbar">
         <AppMenu />
-        <h1 className="appbar__title">{settings?.restaurant.name ?? ''}</h1>
+        <div className="appbar__titles">
+          <h1 className="appbar__title">{settings?.restaurant.name ?? ''}</h1>
+          {settings?.restaurant.tagline && <div className="appbar__brandline">{brandLine(settings.restaurant.tagline)}</div>}
+        </div>
       </header>
       {orders.length > 0 && (
         <div className="home__section">

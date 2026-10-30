@@ -31,7 +31,10 @@ export default function AppMenu() {
         closable={false}
         rootClassName="navdrawer"
       >
-        <div className="navdrawer__headline">{settings?.restaurant.name ?? ''}</div>
+        <div className="navdrawer__headline">
+          {settings?.restaurant.name ?? ''}
+          {settings?.restaurant.tagline && <div className="appbar__brandline">{brandLine(settings.restaurant.tagline)}</div>}
+        </div>
         <nav>
           {LINKS.map((l) => (
             <button
@@ -50,6 +53,17 @@ export default function AppMenu() {
         </nav>
         <div className="navdrawer__foot">Version {APP_VERSION}</div>
       </Drawer>
+    </>
+  );
+}
+
+/** "By R9 Roadiz Since 2012" → By **R9 Roadiz** · Since 2012 (on screen only; bills print it plainly). */
+export function brandLine(tagline: string): ReactNode {
+  const m = tagline.match(/^By\s+(.+?)\s+(Since\s+\d{4})$/i);
+  if (!m) return tagline;
+  return (
+    <>
+      By <b>{m[1]}</b> · {m[2]}
     </>
   );
 }

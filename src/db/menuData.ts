@@ -8,6 +8,7 @@ import type { Category, MenuItem, RestaurantProfile } from './types';
 
 export const RESTAURANT: RestaurantProfile = {
   name: 'Mewari Makkhan Dhaba',
+  tagline: 'By R9 Roadiz Since 2012',
   address: 'Shop No. 1, Debari Circle, Airport Road, Near Bharat Tirpal, Udaipur (Raj.)',
   phone: '7737788703',
   gstin: '',
